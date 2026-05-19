@@ -191,11 +191,18 @@
 
     <div id="game-wrapper">
         <div id="ui-overlay">
-            <div class="glass-panel">
-                <span class="label">Cosmic Score</span>
-                <span id="score-value" class="value">0</span>
+            <div style="display: flex; gap: 12px;">
+                <div class="glass-panel">
+                    <span class="label">Score</span>
+                    <span id="score-value" class="value">0</span>
+                </div>
+                <div class="glass-panel">
+                    <span class="label">Best</span>
+                    <span id="best-value" class="value" style="color: var(--accent-gold);">0</span>
+                </div>
             </div>
             <div class="glass-panel" id="next-preview-container">
+
                 <span class="label">Next</span>
                 <div id="next-preview"></div>
             </div>

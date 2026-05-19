@@ -28,6 +28,15 @@ let gameOver = false;
 let mouseX = WIDTH / 2;
 let particles = [];
 let gameOverTimer = 0; // 게임 오버 지연 타이머
+let bestScore = parseInt(localStorage.getItem("cosmic_best_score")) || 0;
+
+const scoreValueEl = document.getElementById("score-value");
+const bestValueEl = document.getElementById("best-value");
+const nextPreviewEl = document.getElementById("next-preview");
+const gameOverEl = document.getElementById("game-over");
+const finalScoreEl = document.getElementById("final-score");
+
+bestValueEl.innerText = bestScore;
 
 /** [Sound Manager] Web Audio API를 활용한 효과음 생성 **/
 const SoundManager = (() => {
@@ -152,11 +161,6 @@ document.getElementById("audio-toggle").onclick = (e) => {
     e.currentTarget.blur();
 };
 
-const scoreValueEl = document.getElementById("score-value");
-const nextPreviewEl = document.getElementById("next-preview");
-const gameOverEl = document.getElementById("game-over");
-const finalScoreEl = document.getElementById("final-score");
-
 function init() {
     engine = Engine.create({ gravity: { y: 1.0 } });
     world = engine.world;
@@ -220,7 +224,11 @@ function init() {
         }, 600);
     };
 
-    // ... (rest of events)
+    canvas.addEventListener("mousemove", handleMove);
+    canvas.addEventListener("touchmove", (e) => { e.preventDefault(); handleMove(e); }, { passive: false });
+    canvas.addEventListener("mousedown", handleRelease);
+    canvas.addEventListener("touchend", (e) => { e.preventDefault(); handleRelease(); }, { passive: false });
+
     // 충돌 및 합성
     Events.on(engine, "collisionStart", (event) => {
         event.pairs.forEach((pair) => {
@@ -359,6 +367,15 @@ function updateScore(points) {
     scoreValueEl.innerText = score;
     scoreValueEl.style.transform = "scale(1.2)";
     setTimeout(() => scoreValueEl.style.transform = "scale(1)", 100);
+
+    // 하이 스코어 갱신
+    if (score > bestScore) {
+        bestScore = score;
+        bestValueEl.innerText = bestScore;
+        localStorage.setItem("cosmic_best_score", bestScore);
+        bestValueEl.style.transform = "scale(1.3)";
+        setTimeout(() => bestValueEl.style.transform = "scale(1)", 150);
+    }
 }
 
 function updateNextPreview() {
