@@ -27,7 +27,10 @@ let score = 0;
 let gameOver = false;
 let mouseX = WIDTH / 2;
 let particles = [];
+let floatingTexts = []; // 콤보 텍스트 관리
 let gameOverTimer = 0; // 게임 오버 지연 타이머
+let comboCount = 0;
+let lastMergeTime = 0;
 let bestScore = parseInt(localStorage.getItem("cosmic_best_score")) || 0;
 
 const scoreValueEl = document.getElementById("score-value");
@@ -315,6 +318,7 @@ function init() {
         });
 
         updateParticles(ctx);
+        updateFloatingTexts(ctx);
     });
 
     // 게임 오버 체크 (2초 이상 머물러야 종료)
@@ -362,11 +366,29 @@ function createPlanet(x, y, index, isStatic) {
     return body;
 }
 
-function updateScore(points) {
-    score += points;
+function updateScore(points, isMerge = false) {
+    const now = Date.now();
+    let finalPoints = points;
+
+    if (isMerge) {
+        if (now - lastMergeTime < 1500) {
+            comboCount++;
+            finalPoints = points * (1 + comboCount * 0.2); // 콤보 보너스 20%씩
+        } else {
+            comboCount = 0;
+        }
+        lastMergeTime = now;
+    }
+
+    score += Math.floor(finalPoints);
     scoreValueEl.innerText = score;
     scoreValueEl.style.transform = "scale(1.2)";
     setTimeout(() => scoreValueEl.style.transform = "scale(1)", 100);
+
+    // 콤보 텍스트 생성
+    if (isMerge && comboCount > 0) {
+        createFloatingText(mouseX, 100, `Combo x${comboCount + 1}`, "#f1c40f");
+    }
 
     // 하이 스코어 갱신
     if (score > bestScore) {
@@ -375,6 +397,35 @@ function updateScore(points) {
         localStorage.setItem("cosmic_best_score", bestScore);
         bestValueEl.style.transform = "scale(1.3)";
         setTimeout(() => bestValueEl.style.transform = "scale(1)", 150);
+    }
+}
+
+function createFloatingText(x, y, text, color) {
+    floatingTexts.push({
+        x, y,
+        text,
+        color,
+        life: 1.0,
+        vy: -2
+    });
+}
+
+function updateFloatingTexts(ctx) {
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const t = floatingTexts[i];
+        t.y += t.vy;
+        t.life -= 0.02;
+        if (t.life <= 0) {
+            floatingTexts.splice(i, 1);
+            continue;
+        }
+        ctx.save();
+        ctx.globalAlpha = t.life;
+        ctx.fillStyle = t.color;
+        ctx.font = "bold 24px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(t.text, t.x, t.y);
+        ctx.restore();
     }
 }
 
