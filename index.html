@@ -3,8 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>수박 게임 (Suika Game)</title>
+    <title>Suika Game Evolution</title>
     <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --container-bg: #fffce5;
+            --ui-bg: rgba(255, 255, 255, 0.9);
+            --accent-color: #ff6b6b;
+            --text-color: #2d3436;
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -13,58 +21,121 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
-            background-color: #f0f0f0;
-            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-color);
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             overflow: hidden;
             touch-action: none;
         }
 
-        #game-container {
+        #game-wrapper {
             position: relative;
-            box-shadow: 0 0 20px rgba(0,0,0,0.2);
-            background-color: #fff;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            border-radius: 20px;
+            overflow: hidden;
+            background-color: var(--container-bg);
         }
 
-        #ui-layer {
+        #ui-overlay {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
+            z-index: 10;
         }
 
-        #score-board {
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 10px 20px;
-            border-radius: 15px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        .hud-container {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
         }
 
-        #next-fruit-container {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 10px;
-            border-radius: 15px;
+        .score-box {
+            background: var(--ui-bg);
+            padding: 10px 25px;
+            border-radius: 20px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.05);
+            backdrop-filter: blur(5px);
+        }
+
+        .score-label {
+            font-size: 14px;
+            color: #636e72;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+
+        #score {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text-color);
+        }
+
+        .next-box {
+            background: var(--ui-bg);
+            padding: 15px;
+            border-radius: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.05);
+            backdrop-filter: blur(5px);
+            min-width: 80px;
         }
 
-        .next-label {
-            font-size: 14px;
-            margin-bottom: 5px;
-            color: #666;
+        #next-preview {
+            width: 50px;
+            height: 50px;
+            margin-top: 10px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        #next-fruit-preview {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+        }
+
+        #game-over-screen h2 {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        #game-over-screen p {
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+
+        .retry-btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            background: var(--accent-color);
+            border: none;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.2s;
+        }
+
+        .retry-btn:hover {
+            transform: scale(1.05);
         }
 
         canvas {
@@ -73,17 +144,30 @@
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <div id="ui-layer">
-            <div id="score-board">Score: 0</div>
+    <div id="game-wrapper">
+        <div id="ui-overlay">
+            <div class="hud-container">
+                <div class="score-box">
+                    <div class="score-label">Score</div>
+                    <div id="score">0</div>
+                </div>
+                <div class="next-box">
+                    <div class="score-label">Next</div>
+                    <div id="next-preview"></div>
+                </div>
+            </div>
         </div>
-        <div id="next-fruit-container">
-            <div class="next-label">NEXT</div>
-            <div id="next-fruit-preview"></div>
+
+        <div id="game-over-screen">
+            <h2>GAME OVER</h2>
+            <p>Final Score: <span id="final-score">0</span></p>
+            <button class="retry-btn" onclick="location.reload()">Try Again</button>
         </div>
+        
+        <div id="game-container"></div>
     </div>
 
-    <!-- Matter.js CDN -->
+    <!-- Matter.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script src="main.js"></script>
 </body>

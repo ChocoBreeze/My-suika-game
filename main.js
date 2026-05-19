@@ -1,37 +1,46 @@
 const { Engine, Render, Runner, World, Bodies, Events, Composite, Body } = Matter;
 
-// 과일 정보 정의 (반지름, 색상, 점수)
+/**
+ * [과일 설정]
+ * 이미지가 있다면 sprite: { texture: 'url' } 형태로 추가할 수 있습니다.
+ */
 const FRUITS = [
-    { label: "cherry", radius: 15, color: "#F20306", score: 2 },
-    { label: "strawberry", radius: 20, color: "#FF624C", score: 4 },
-    { label: "grape", radius: 27, color: "#A969FF", score: 8 },
-    { label: "dekopon", radius: 33, color: "#FFA135", score: 16 },
-    { label: "persimmon", radius: 40, color: "#FF7401", score: 32 },
-    { label: "apple", radius: 50, color: "#E01010", score: 64 },
-    { label: "pear", radius: 59, color: "#FFF154", score: 128 },
-    { label: "peach", radius: 70, color: "#FFAAB1", score: 256 },
-    { label: "pineapple", radius: 82, color: "#FFE211", score: 512 },
-    { label: "melon", radius: 95, color: "#A7E051", score: 1024 },
-    { label: "watermelon", radius: 110, color: "#256214", score: 2048 },
+    { label: "cherry", radius: 15, color: "#F20306", score: 2, image: "" },
+    { label: "strawberry", radius: 22, color: "#FF624C", score: 4, image: "" },
+    { label: "grape", radius: 28, color: "#A969FF", score: 8, image: "" },
+    { label: "dekopon", radius: 35, color: "#FFA135", score: 16, image: "" },
+    { label: "persimmon", radius: 42, color: "#FF7401", score: 32, image: "" },
+    { label: "apple", radius: 52, color: "#E01010", score: 64, image: "" },
+    { label: "pear", radius: 62, color: "#FFF154", score: 128, image: "" },
+    { label: "peach", radius: 72, color: "#FFAAB1", score: 256, image: "" },
+    { label: "pineapple", radius: 85, color: "#FFE211", score: 512, image: "" },
+    { label: "melon", radius: 100, color: "#A7E051", score: 1024, image: "" },
+    { label: "watermelon", radius: 120, color: "#256214", score: 2048, image: "" },
 ];
 
 const WIDTH = 450;
 const HEIGHT = 700;
-const WALL_THICKNESS = 20;
+const WALL_THICKNESS = 25;
+const DEADLINE = 150;
 
-// 초기 상태
 let engine, render, runner, world;
 let currentFruit = null;
 let nextFruitIndex = Math.floor(Math.random() * 3);
 let isClickable = true;
 let score = 0;
+let gameOver = false;
+let mouseX = WIDTH / 2;
 
 // UI 요소
-const scoreBoard = document.getElementById("score-board");
-const nextPreview = document.getElementById("next-fruit-preview");
+const scoreEl = document.getElementById("score");
+const nextPreviewEl = document.getElementById("next-preview");
+const gameOverScreen = document.getElementById("game-over-screen");
+const finalScoreEl = document.getElementById("final-score");
 
 function init() {
-    engine = Engine.create();
+    engine = Engine.create({
+        gravity: { y: 1.5 } // 약간 더 묵직한 중력
+    });
     world = engine.world;
 
     render = Render.create({
@@ -41,7 +50,8 @@ function init() {
             width: WIDTH,
             height: HEIGHT,
             wireframes: false,
-            background: "#FFFCE5"
+            background: "transparent", // CSS 배경 사용
+            showAngleIndicator: false
         }
     });
 
@@ -49,73 +59,68 @@ function init() {
     runner = Runner.create();
     Runner.run(runner, engine);
 
-    // 바닥과 벽 생성
-    const ground = Bodies.rectangle(WIDTH / 2, HEIGHT - WALL_THICKNESS / 2, WIDTH, WALL_THICKNESS, { isStatic: true, render: { fillStyle: "#E6BA8F" } });
-    const leftWall = Bodies.rectangle(WALL_THICKNESS / 2, HEIGHT / 2, WALL_THICKNESS, HEIGHT, { isStatic: true, render: { fillStyle: "#E6BA8F" } });
-    const rightWall = Bodies.rectangle(WIDTH - WALL_THICKNESS / 2, HEIGHT / 2, WALL_THICKNESS, HEIGHT, { isStatic: true, render: { fillStyle: "#E6BA8F" } });
+    // 바닥과 벽 (모서리 둥글게 표현은 어려우므로 색상만 세련되게)
+    const wallOpts = { isStatic: true, render: { fillStyle: "#E6BA8F" }, friction: 0.1 };
+    const ground = Bodies.rectangle(WIDTH / 2, HEIGHT + 25, WIDTH, 100, wallOpts);
+    const leftWall = Bodies.rectangle(-25, HEIGHT / 2, 100, HEIGHT, wallOpts);
+    const rightWall = Bodies.rectangle(WIDTH + 25, HEIGHT / 2, 100, HEIGHT, wallOpts);
     
     World.add(world, [ground, leftWall, rightWall]);
-
-    // 게임 오버 라인 시각화
-    const topLine = Bodies.rectangle(WIDTH / 2, 150, WIDTH, 2, {
-        isStatic: true,
-        isSensor: true, // 충돌은 감지하지만 물리적 영향은 없음
-        render: { fillStyle: "#FF0000", opacity: 0.3 }
-    });
-    World.add(world, topLine);
 
     spawnFruit();
     updateNextPreview();
 
-    // 마우스/터치 이벤트
+    // 입력 핸들러
     const canvas = render.canvas;
-    canvas.addEventListener("mousemove", (e) => {
-        if (!currentFruit || !isClickable) return;
+    
+    const onMove = (e) => {
+        if (gameOver || !currentFruit || !isClickable) return;
         const rect = canvas.getBoundingClientRect();
-        let x = e.clientX - rect.left;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        mouseX = clientX - rect.left;
         
-        // 범위 제한
         const radius = FRUITS[currentFruit.fruitIndex].radius;
-        x = Math.max(WALL_THICKNESS + radius, Math.min(x, WIDTH - WALL_THICKNESS - radius));
+        mouseX = Math.max(WALL_THICKNESS + radius, Math.min(mouseX, WIDTH - WALL_THICKNESS - radius));
         
-        Body.setPosition(currentFruit, { x: x, y: 50 });
-    });
+        Body.setPosition(currentFruit, { x: mouseX, y: 70 });
+    };
 
-    canvas.addEventListener("click", (e) => {
-        if (!currentFruit || !isClickable) return;
+    const onClick = () => {
+        if (gameOver || !currentFruit || !isClickable) return;
         
         isClickable = false;
         Body.setStatic(currentFruit, false);
         
         setTimeout(() => {
-            spawnFruit();
+            if (!gameOver) spawnFruit();
             isClickable = true;
-        }, 1000);
-    });
+        }, 800);
+    };
 
-    // 충돌 감지 (합성 로직)
+    canvas.addEventListener("mousemove", onMove);
+    canvas.addEventListener("touchmove", (e) => { e.preventDefault(); onMove(e); }, { passive: false });
+    canvas.addEventListener("mousedown", onClick);
+    canvas.addEventListener("touchend", onClick);
+
+    // [합성 및 파티클 효과]
     Events.on(engine, "collisionStart", (event) => {
         event.pairs.forEach((pair) => {
-            const bodyA = pair.bodyA;
-            const bodyB = pair.bodyB;
+            const { bodyA, bodyB } = pair;
 
             if (bodyA.fruitIndex !== undefined && bodyA.fruitIndex === bodyB.fruitIndex) {
                 const index = bodyA.fruitIndex;
 
-                // 마지막 단계(수박)면 둘 다 제거
                 if (index === FRUITS.length - 1) {
-                    World.remove(world, [bodyA, bodyB]);
+                    removeWithEffect(bodyA, bodyB);
                     updateScore(FRUITS[index].score * 2);
                     return;
                 }
 
-                // 두 과일의 중심점 계산
                 const midX = (bodyA.position.x + bodyB.position.x) / 2;
                 const midY = (bodyA.position.y + bodyB.position.y) / 2;
 
-                World.remove(world, [bodyA, bodyB]);
+                removeWithEffect(bodyA, bodyB);
                 
-                // 다음 단계 과일 생성
                 const newFruit = createFruit(midX, midY, index + 1, false);
                 World.add(world, newFruit);
                 updateScore(FRUITS[index + 1].score);
@@ -123,61 +128,110 @@ function init() {
         });
     });
 
-    // 게임 오버 체크
+    // [커스텀 렌더링: 조준선 및 게임 오버 라인]
+    Events.on(render, "afterRender", () => {
+        const ctx = render.context;
+
+        // 1. 조준선 (Aim Line)
+        if (isClickable && currentFruit) {
+            ctx.beginPath();
+            ctx.setLineDash([5, 10]);
+            ctx.moveTo(currentFruit.position.x, currentFruit.position.y);
+            ctx.lineTo(currentFruit.position.x, HEIGHT);
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.15)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]); // 대시 초기화
+        }
+
+        // 2. 게임 오버 경계선
+        ctx.beginPath();
+        ctx.moveTo(0, DEADLINE);
+        ctx.lineTo(WIDTH, DEADLINE);
+        ctx.strokeStyle = "rgba(255, 107, 107, 0.3)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    });
+
+    // [게임 오버 로직]
     Events.on(engine, "afterUpdate", () => {
+        if (gameOver) return;
+
         Composite.allBodies(world).forEach(body => {
-            if (body.fruitIndex !== undefined && !body.isStatic && body.position.y < 150) {
-                // 과일이 생성된 직후(y=50 부근)는 제외하기 위해 y < 150과 velocity 체크
-                if (body.position.y > 60 && Math.abs(body.velocity.y) < 0.1) {
-                    alert("Game Over! Score: " + score);
-                    resetGame();
+            if (body.fruitIndex !== undefined && !body.isStatic && body.position.y < DEADLINE) {
+                // 과일이 위쪽에 머무를 때 (속도가 충분히 낮을 때)
+                if (body.position.y > 80 && Math.abs(body.velocity.y) < 0.2) {
+                    triggerGameOver();
                 }
             }
         });
     });
 }
 
-function resetGame() {
-    World.clear(world);
-    Engine.clear(engine);
-    score = 0;
-    updateScore(0);
-    init();
-}
-
 function spawnFruit() {
     const index = nextFruitIndex;
-    nextFruitIndex = Math.floor(Math.random() * 3); // 1~3단계 중 랜덤
+    nextFruitIndex = Math.floor(Math.random() * 4); // 0~3단계 중 랜덤
     
-    currentFruit = createFruit(WIDTH / 2, 50, index, true);
+    currentFruit = createFruit(mouseX, 70, index, true);
     World.add(world, currentFruit);
     updateNextPreview();
 }
 
 function createFruit(x, y, index, isStatic) {
-    const fruitCfg = FRUITS[index];
-    const fruit = Bodies.circle(x, y, fruitCfg.radius, {
-        isStatic: isStatic,
-        label: fruitCfg.label,
-        render: { fillStyle: fruitCfg.color },
-        restitution: 0.3, // 약간의 탄성
-        friction: 0.1
-    });
+    const cfg = FRUITS[index];
     
+    const options = {
+        isStatic: isStatic,
+        restitution: 0.4,
+        friction: 0.1,
+        render: {
+            fillStyle: cfg.color,
+        }
+    };
+
+    // 이미지 파일이 정의되어 있다면 sprite 적용
+    if (cfg.image) {
+        options.render.sprite = {
+            texture: cfg.image,
+            xScale: (cfg.radius * 2) / 100, // 원본 이미지가 100px 기준일 때
+            yScale: (cfg.radius * 2) / 100
+        };
+    }
+
+    const fruit = Bodies.circle(x, y, cfg.radius, options);
     fruit.fruitIndex = index;
     return fruit;
 }
 
+function removeWithEffect(bodyA, bodyB) {
+    // 실제 파티클 시스템을 구현하려면 복잡하므로, 단순 제거 전 스케일 애니메이션 효과 등을 고려할 수 있음
+    // 여기선 즉시 제거만 수행 (Matter.js 기본)
+    World.remove(world, [bodyA, bodyB]);
+}
+
 function updateNextPreview() {
     const nextCfg = FRUITS[nextFruitIndex];
-    nextPreview.style.backgroundColor = nextCfg.color;
-    nextPreview.style.width = `${nextCfg.radius * 2}px`;
-    nextPreview.style.height = `${nextCfg.radius * 2}px`;
+    if (nextCfg.image) {
+        nextPreviewEl.style.backgroundImage = `url(${nextCfg.image})`;
+        nextPreviewEl.style.backgroundColor = "transparent";
+    } else {
+        nextPreviewEl.style.backgroundImage = "none";
+        nextPreviewEl.style.backgroundColor = nextCfg.color;
+        nextPreviewEl.style.borderRadius = "50%";
+    }
+    nextPreviewEl.style.transform = "scale(1.2)";
+    setTimeout(() => { nextPreviewEl.style.transform = "scale(1)"; }, 100);
 }
 
 function updateScore(points) {
     score += points;
-    scoreBoard.innerText = `Score: ${score}`;
+    scoreEl.innerText = score;
+}
+
+function triggerGameOver() {
+    gameOver = true;
+    finalScoreEl.innerText = score;
+    gameOverScreen.style.display = "flex";
 }
 
 init();
