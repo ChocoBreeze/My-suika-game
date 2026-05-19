@@ -93,6 +93,21 @@ const SoundManager = (() => {
         noise.start();
     };
 
+    const playVortex = () => {
+        if (isMuted) return;
+        initContext();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 1);
+    };
+
     const toggleMute = () => {
         isMuted = !isMuted;
         const icon = document.getElementById("audio-icon");
@@ -102,8 +117,35 @@ const SoundManager = (() => {
         return isMuted;
     };
 
-    return { playDrop, playMerge, playExplosion, toggleMute, initContext };
+    return { playDrop, playMerge, playExplosion, playVortex, toggleMute, initContext };
 })();
+
+/** [Black Hole] 특수 능력 **/
+let blackHoleCharges = 2;
+document.getElementById("blackhole-btn").onclick = (e) => {
+    if (gameOver || blackHoleCharges <= 0) return;
+    
+    // 화면에서 가장 작은 행성 3개 찾기
+    const bodies = Composite.allBodies(world)
+        .filter(b => b.planetIndex !== undefined && !b.isStatic)
+        .sort((a, b) => a.planetIndex - b.planetIndex)
+        .slice(0, 3);
+
+    if (bodies.length > 0) {
+        blackHoleCharges--;
+        document.getElementById("blackhole-count").innerText = blackHoleCharges;
+        if (blackHoleCharges === 0) e.currentTarget.style.opacity = "0.3";
+        
+        SoundManager.playVortex();
+        shakeCanvas();
+        
+        bodies.forEach(body => {
+            createExplosion(body.position.x, body.position.y, "#a29bfe", 10);
+            World.remove(world, body);
+        });
+    }
+    e.currentTarget.blur();
+};
 
 document.getElementById("audio-toggle").onclick = (e) => {
     SoundManager.toggleMute();
