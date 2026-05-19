@@ -151,7 +151,7 @@ function init() {
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // 모든 행성 바디에 이모지 그리기
+        // 모든 행성 바디에 이모지 및 효과 그리기
         const bodies = Composite.allBodies(world);
         bodies.forEach(body => {
             if (body.planetIndex !== undefined) {
@@ -160,14 +160,31 @@ function init() {
                 ctx.translate(body.position.x, body.position.y);
                 ctx.rotate(body.angle);
                 
-                // 그림자 효과
-                ctx.shadowBlur = planet.radius / 2;
-                ctx.shadowColor = planet.color;
+                // 1. 행성 분위기(Atmosphere) 효과 - 쌓였을 때 구분감 제공
+                const gradient = ctx.createRadialGradient(0, 0, planet.radius * 0.5, 0, 0, planet.radius * 1.1);
+                gradient.addColorStop(0, `${planet.color}22`);
+                gradient.addColorStop(1, "transparent");
                 
-                ctx.font = `${planet.radius * 2.2}px Arial`;
+                ctx.beginPath();
+                ctx.arc(0, 0, planet.radius * 1.2, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // 2. 외곽선 - 서로 겹쳤을 때 경계를 명확하게 함
+                ctx.beginPath();
+                ctx.arc(0, 0, planet.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // 3. 이모지 렌더링
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = planet.color;
+                ctx.font = `${planet.radius * 1.8}px Arial`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(planet.emoji, 0, 0);
+                
                 ctx.restore();
             }
         });
