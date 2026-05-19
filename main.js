@@ -290,25 +290,26 @@ function init() {
         bodies.forEach(body => {
             if (body.planetIndex !== undefined) {
                 const planet = PLANETS[body.planetIndex];
+                const scale = body.renderScale || 1.0;
                 ctx.save();
                 ctx.translate(body.position.x, body.position.y);
                 ctx.rotate(body.angle);
                 
                 // [최적화] 복잡한 그라데이션/그림자 대신 단순 원 사용
                 ctx.beginPath();
-                ctx.arc(0, 0, planet.radius * 1.15, 0, Math.PI * 2);
+                ctx.arc(0, 0, planet.radius * 1.15 * scale, 0, Math.PI * 2);
                 ctx.fillStyle = planet.color;
                 ctx.globalAlpha = 0.15;
                 ctx.fill();
                 ctx.globalAlpha = 1.0;
 
                 ctx.beginPath();
-                ctx.arc(0, 0, planet.radius, 0, Math.PI * 2);
+                ctx.arc(0, 0, planet.radius * scale, 0, Math.PI * 2);
                 ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
                 ctx.lineWidth = 1;
                 ctx.stroke();
 
-                ctx.font = `${planet.radius * 1.8}px Arial`;
+                ctx.font = `${planet.radius * 1.8 * scale}px Arial`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(planet.emoji, 0, 0);
@@ -363,6 +364,19 @@ function createPlanet(x, y, index, isStatic) {
         render: { visible: false }
     });
     body.planetIndex = index;
+    
+    // [애니메이션] 생성 시 스케일 효과용 프로퍼티
+    body.renderScale = 0.1; 
+    const targetScale = 1.0;
+    const animate = () => {
+        if (body.renderScale < targetScale) {
+            body.renderScale += 0.1;
+            if (body.renderScale > targetScale) body.renderScale = targetScale;
+            requestAnimationFrame(animate);
+        }
+    };
+    animate();
+    
     return body;
 }
 
