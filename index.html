@@ -3,139 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suika Game Evolution</title>
+    <title>Suika Game: Premium Edition</title>
+    <!-- 고급 서체 및 아이콘 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
     <style>
         :root {
-            --bg-color: #f8f9fa;
-            --container-bg: #fffce5;
-            --ui-bg: rgba(255, 255, 255, 0.9);
-            --accent-color: #ff6b6b;
-            --text-color: #2d3436;
+            --primary-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-dark: #2d3436;
+            --accent-red: #ff7675;
+            --shadow-soft: 0 10px 30px rgba(0,0,0,0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             margin: 0;
             padding: 0;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            background-color: var(--bg-color);
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            min-height: 100vh;
+            background: #fdfbfb;
+            background-image: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+            font-family: 'Pretendard', sans-serif;
             overflow: hidden;
-            touch-action: none;
         }
 
         #game-wrapper {
             position: relative;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-            border-radius: 20px;
+            width: 450px;
+            height: 700px;
+            background: #fffce5;
+            border-radius: 32px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.12);
+            border: 8px solid #fff;
             overflow: hidden;
-            background-color: var(--container-bg);
         }
 
+        /* 상단 UI 레이어 */
         #ui-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        .hud-container {
+            padding: 24px;
+            z-index: 100;
             display: flex;
             justify-content: space-between;
-            padding: 20px;
+            pointer-events: none;
         }
 
-        .score-box {
-            background: var(--ui-bg);
-            padding: 10px 25px;
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
             border-radius: 20px;
-            box-shadow: 0 8px 15px rgba(0,0,0,0.05);
-            backdrop-filter: blur(5px);
-        }
-
-        .score-label {
-            font-size: 14px;
-            color: #636e72;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 2px;
-        }
-
-        #score {
-            font-size: 32px;
-            font-weight: 800;
-            color: var(--text-color);
-        }
-
-        .next-box {
-            background: var(--ui-bg);
-            padding: 15px;
-            border-radius: 20px;
+            padding: 12px 20px;
+            box-shadow: var(--shadow-soft);
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 8px 15px rgba(0,0,0,0.05);
-            backdrop-filter: blur(5px);
-            min-width: 80px;
+        }
+
+        .label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #b2bec3;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+        }
+
+        .value {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--text-dark);
+            font-variant-numeric: tabular-nums;
+        }
+
+        #next-preview-container {
+            width: 70px;
+            height: 70px;
+            justify-content: center;
         }
 
         #next-preview {
-            width: 50px;
-            height: 50px;
-            margin-top: 10px;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 40px;
+            height: 40px;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        #game-over-screen {
+        /* 게임 오버 화면 */
+        #game-over {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            inset: 0;
+            background: rgba(45, 52, 54, 0.85);
+            backdrop-filter: blur(15px);
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            z-index: 200;
             color: white;
-            z-index: 100;
-            backdrop-filter: blur(8px);
+            opacity: 0;
+            transition: opacity 0.5s ease;
         }
 
-        #game-over-screen h2 {
-            font-size: 48px;
-            margin-bottom: 10px;
+        #game-over.show {
+            display: flex;
+            opacity: 1;
         }
 
-        #game-over-screen p {
-            font-size: 24px;
-            margin-bottom: 30px;
+        #game-over h1 {
+            font-size: 42px;
+            font-weight: 900;
+            margin: 0 0 8px 0;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .retry-btn {
-            padding: 15px 40px;
-            font-size: 20px;
-            font-weight: bold;
-            background: var(--accent-color);
+        #game-over p {
+            font-size: 18px;
+            color: #dfe6e9;
+            margin: 0 0 32px 0;
+        }
+
+        .btn-restart {
+            padding: 16px 48px;
+            background: white;
+            color: var(--text-dark);
             border: none;
-            border-radius: 30px;
-            color: white;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 800;
             cursor: pointer;
-            pointer-events: auto;
-            transition: transform 0.2s;
+            transition: all 0.2s;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
 
-        .retry-btn:hover {
-            transform: scale(1.05);
+        .btn-restart:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 25px rgba(0,0,0,0.3);
         }
 
         canvas {
@@ -146,28 +161,25 @@
 <body>
     <div id="game-wrapper">
         <div id="ui-overlay">
-            <div class="hud-container">
-                <div class="score-box">
-                    <div class="score-label">Score</div>
-                    <div id="score">0</div>
-                </div>
-                <div class="next-box">
-                    <div class="score-label">Next</div>
-                    <div id="next-preview"></div>
-                </div>
+            <div class="glass-panel">
+                <span class="label">Score</span>
+                <span id="score-value" class="value">0</span>
+            </div>
+            <div class="glass-panel" id="next-preview-container">
+                <span class="label">Next</span>
+                <div id="next-preview"></div>
             </div>
         </div>
 
-        <div id="game-over-screen">
-            <h2>GAME OVER</h2>
-            <p>Final Score: <span id="final-score">0</span></p>
-            <button class="retry-btn" onclick="location.reload()">Try Again</button>
+        <div id="game-over">
+            <h1>GAME OVER</h1>
+            <p>Your Final Score: <span id="final-score">0</span></p>
+            <button class="btn-restart" onclick="location.reload()">PLAY AGAIN</button>
         </div>
-        
+
         <div id="game-container"></div>
     </div>
 
-    <!-- Matter.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script src="main.js"></script>
 </body>
