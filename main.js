@@ -27,6 +27,88 @@ let score = 0;
 let gameOver = false;
 let mouseX = WIDTH / 2;
 let particles = [];
+let gameOverTimer = 0; // 게임 오버 지연 타이머
+
+/** [Sound Manager] Web Audio API를 활용한 효과음 생성 **/
+const SoundManager = (() => {
+    let audioCtx = null;
+    let isMuted = false;
+    let bgmNode = null;
+
+    const initContext = () => {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    };
+
+    const playDrop = () => {
+        if (isMuted) return;
+        initContext();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    };
+
+    const playMerge = (index) => {
+        if (isMuted) return;
+        initContext();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const freq = 200 + (index * 50);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    };
+
+    const playExplosion = () => {
+        if (isMuted) return;
+        initContext();
+        const bufferSize = audioCtx.sampleRate * 0.5;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(400, audioCtx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+        noise.connect(filter).connect(gain).connect(audioCtx.destination);
+        noise.start();
+    };
+
+    const toggleMute = () => {
+        isMuted = !isMuted;
+        const icon = document.getElementById("audio-icon");
+        icon.innerText = isMuted ? "🔇" : "🔊";
+        if (isMuted && audioCtx) audioCtx.suspend();
+        else if (audioCtx) audioCtx.resume();
+        return isMuted;
+    };
+
+    return { playDrop, playMerge, playExplosion, toggleMute, initContext };
+})();
+
+document.getElementById("audio-toggle").onclick = (e) => {
+    SoundManager.toggleMute();
+    e.currentTarget.blur();
+};
 
 const scoreValueEl = document.getElementById("score-value");
 const nextPreviewEl = document.getElementById("next-preview");
@@ -86,6 +168,7 @@ function init() {
         if (gameOver || !currentPlanet || !isClickable) return;
         isClickable = false;
         Body.setStatic(currentPlanet, false);
+        SoundManager.playDrop();
         
         setTimeout(() => {
             if (!gameOver) {
@@ -95,11 +178,7 @@ function init() {
         }, 600);
     };
 
-    canvas.addEventListener("mousemove", handleMove);
-    canvas.addEventListener("touchmove", (e) => { e.preventDefault(); handleMove(e); }, { passive: false });
-    canvas.addEventListener("mousedown", handleRelease);
-    canvas.addEventListener("touchend", (e) => { e.preventDefault(); handleRelease(); }, { passive: false });
-
+    // ... (rest of events)
     // 충돌 및 합성
     Events.on(engine, "collisionStart", (event) => {
         event.pairs.forEach((pair) => {
@@ -110,6 +189,7 @@ function init() {
                     createExplosion(bodyA.position.x, bodyA.position.y, "#fff", 30);
                     World.remove(world, [bodyA, bodyB]);
                     updateScore(PLANETS[index].score * 2);
+                    SoundManager.playExplosion();
                     return;
                 }
 
@@ -123,6 +203,7 @@ function init() {
                 World.add(world, nextBody);
                 updateScore(PLANETS[index + 1].score);
                 shakeCanvas();
+                SoundManager.playMerge(index);
             }
         });
     });
@@ -131,24 +212,24 @@ function init() {
     Events.on(render, "afterRender", () => {
         const ctx = render.context;
         
-        // 조준선 (Cosmic Laser)
+        // 조준선 (심플하게 변경하여 부하 감소)
         if (isClickable && currentPlanet) {
             ctx.beginPath();
-            ctx.setLineDash([10, 15]);
+            ctx.setLineDash([5, 15]);
             ctx.moveTo(currentPlanet.position.x, 70);
             ctx.lineTo(currentPlanet.position.x, HEIGHT);
-            ctx.strokeStyle = "rgba(108, 92, 231, 0.3)";
+            ctx.strokeStyle = "rgba(108, 92, 231, 0.2)";
             ctx.lineWidth = 2;
             ctx.stroke();
             ctx.setLineDash([]);
         }
 
-        // 데드라인
+        // 데드라인 (타이머에 따라 강조)
         ctx.beginPath();
         ctx.moveTo(0, DEADLINE);
         ctx.lineTo(WIDTH, DEADLINE);
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = gameOverTimer > 0 ? `rgba(214, 48, 49, ${0.2 + (gameOverTimer/2000)*0.6})` : "rgba(255, 255, 255, 0.1)";
+        ctx.lineWidth = gameOverTimer > 0 ? 3 : 1;
         ctx.stroke();
 
         // 모든 행성 바디에 이모지 및 효과 그리기
@@ -160,26 +241,20 @@ function init() {
                 ctx.translate(body.position.x, body.position.y);
                 ctx.rotate(body.angle);
                 
-                // 1. 행성 분위기(Atmosphere) 효과 - 쌓였을 때 구분감 제공
-                const gradient = ctx.createRadialGradient(0, 0, planet.radius * 0.5, 0, 0, planet.radius * 1.1);
-                gradient.addColorStop(0, `${planet.color}22`);
-                gradient.addColorStop(1, "transparent");
-                
+                // [최적화] 복잡한 그라데이션/그림자 대신 단순 원 사용
                 ctx.beginPath();
-                ctx.arc(0, 0, planet.radius * 1.2, 0, Math.PI * 2);
-                ctx.fillStyle = gradient;
+                ctx.arc(0, 0, planet.radius * 1.15, 0, Math.PI * 2);
+                ctx.fillStyle = planet.color;
+                ctx.globalAlpha = 0.15;
                 ctx.fill();
+                ctx.globalAlpha = 1.0;
 
-                // 2. 외곽선 - 서로 겹쳤을 때 경계를 명확하게 함
                 ctx.beginPath();
                 ctx.arc(0, 0, planet.radius, 0, Math.PI * 2);
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
                 ctx.lineWidth = 1;
                 ctx.stroke();
 
-                // 3. 이모지 렌더링
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = planet.color;
                 ctx.font = `${planet.radius * 1.8}px Arial`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
@@ -192,16 +267,29 @@ function init() {
         updateParticles(ctx);
     });
 
-    // 게임 오버 체크
-    Events.on(engine, "afterUpdate", () => {
+    // 게임 오버 체크 (2초 이상 머물러야 종료)
+    Events.on(engine, "afterUpdate", (event) => {
         if (gameOver) return;
-        Composite.allBodies(world).forEach(body => {
+
+        let isOverLimit = false;
+        const bodies = Composite.allBodies(world);
+        for (let body of bodies) {
             if (body.planetIndex !== undefined && !body.isStatic && body.position.y < DEADLINE) {
-                if (body.position.y > 80 && Math.abs(body.velocity.y) < 0.1) {
-                    triggerGameOver();
+                if (body.position.y > 85 && Math.abs(body.velocity.y) < 0.2) {
+                    isOverLimit = true;
+                    break;
                 }
             }
-        });
+        }
+
+        if (isOverLimit) {
+            gameOverTimer += 16.6; // 약 1프레임당 시간
+            if (gameOverTimer > 2000) {
+                triggerGameOver();
+            }
+        } else {
+            gameOverTimer = 0;
+        }
     });
 }
 
@@ -218,7 +306,7 @@ function createPlanet(x, y, index, isStatic) {
         isStatic: isStatic,
         restitution: 0.3,
         friction: 0.1,
-        render: { visible: false } // 엔진 기본 렌더링 대신 커스텀 렌더링 사용
+        render: { visible: false }
     });
     body.planetIndex = index;
     return body;
