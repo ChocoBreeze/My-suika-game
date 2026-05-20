@@ -27,28 +27,25 @@ let score = 0;
 let gameOver = false;
 let mouseX = WIDTH / 2;
 let particles = [];
-let floatingTexts = []; // 콤보 텍스트 관리
-let gameOverTimer = 0; // 게임 오버 지연 타이머
+let floatingTexts = [];
+let gameOverTimer = 0;
 let comboCount = 0;
 let lastMergeTime = 0;
 let bestScore = parseInt(localStorage.getItem("cosmic_best_score")) || 0;
 
-const scoreValueEl = document.getElementById("score-value");
-const bestValueEl = document.getElementById("best-value");
-const nextPreviewEl = document.getElementById("next-preview");
-const gameOverEl = document.getElementById("game-over");
-const finalScoreEl = document.getElementById("final-score");
-
-bestValueEl.innerText = bestScore;
-
-/** [Sound Manager] Web Audio API를 활용한 효과음 생성 **/
+/** [Sound Manager] **/
 const SoundManager = (() => {
     let audioCtx = null;
     let isMuted = false;
-    let bgmNode = null;
+    let masterGain = null;
 
     const initContext = () => {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.5;
+            masterGain.connect(audioCtx.destination);
+        }
     };
 
     const playDrop = () => {
@@ -61,7 +58,7 @@ const SoundManager = (() => {
         osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        osc.connect(gain).connect(audioCtx.destination);
+        osc.connect(gain).connect(masterGain);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.1);
     };
@@ -77,7 +74,7 @@ const SoundManager = (() => {
         osc.frequency.exponentialRampToValueAtTime(freq * 1.5, audioCtx.currentTime + 0.1);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-        osc.connect(gain).connect(audioCtx.destination);
+        osc.connect(gain).connect(masterGain);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.2);
     };
@@ -89,19 +86,16 @@ const SoundManager = (() => {
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
         const noise = audioCtx.createBufferSource();
         noise.buffer = buffer;
         const filter = audioCtx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.setValueAtTime(400, audioCtx.currentTime);
         filter.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
-
         const gain = audioCtx.createGain();
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-
-        noise.connect(filter).connect(gain).connect(audioCtx.destination);
+        noise.connect(filter).connect(gain).connect(masterGain);
         noise.start();
     };
 
@@ -115,81 +109,72 @@ const SoundManager = (() => {
         osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 1);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
-        osc.connect(gain).connect(audioCtx.destination);
+        osc.connect(gain).connect(masterGain);
         osc.start();
         osc.stop(audioCtx.currentTime + 1);
     };
 
+    const setVolume = (val) => {
+        initContext();
+        masterGain.gain.value = val;
+    };
+
     const toggleMute = () => {
         isMuted = !isMuted;
-        const icon = document.getElementById("audio-icon");
-        icon.innerText = isMuted ? "🔇" : "🔊";
-        if (isMuted && audioCtx) audioCtx.suspend();
-        else if (audioCtx) audioCtx.resume();
+        document.getElementById("audio-icon").innerText = isMuted ? "🔇" : "🔊";
         return isMuted;
     };
 
-    return { playDrop, playMerge, playExplosion, playVortex, toggleMute, initContext };
+    return { playDrop, playMerge, playExplosion, playVortex, setVolume, toggleMute };
 })();
 
-/** [Black Hole] 특수 능력 **/
+/** [UI Hookup] **/
+const scoreValueEl = document.getElementById("score-value");
+const bestValueEl = document.getElementById("best-value");
+const nextPreviewEl = document.getElementById("next-preview");
+const gameOverEl = document.getElementById("game-over");
+const finalScoreEl = document.getElementById("final-score");
+const blackHoleCountEl = document.getElementById("blackhole-count");
+
+bestValueEl.innerText = bestScore;
+
+document.getElementById("audio-toggle").onclick = () => SoundManager.toggleMute();
+document.getElementById("volume-slider").oninput = (e) => SoundManager.setVolume(e.target.value);
+document.getElementById("help-btn").onclick = () => document.getElementById("help-modal").classList.add("show");
+
 let blackHoleCharges = 2;
 document.getElementById("blackhole-btn").onclick = (e) => {
     if (gameOver || blackHoleCharges <= 0) return;
-    
-    // 화면에서 가장 작은 행성 3개 찾기
     const bodies = Composite.allBodies(world)
         .filter(b => b.planetIndex !== undefined && !b.isStatic)
         .sort((a, b) => a.planetIndex - b.planetIndex)
         .slice(0, 3);
-
     if (bodies.length > 0) {
         blackHoleCharges--;
-        document.getElementById("blackhole-count").innerText = blackHoleCharges;
+        blackHoleCountEl.innerText = blackHoleCharges;
         if (blackHoleCharges === 0) e.currentTarget.style.opacity = "0.3";
-        
         SoundManager.playVortex();
         shakeCanvas();
-        
         bodies.forEach(body => {
             createExplosion(body.position.x, body.position.y, "#a29bfe", 10);
             World.remove(world, body);
         });
     }
-    e.currentTarget.blur();
-};
-
-document.getElementById("audio-toggle").onclick = (e) => {
-    SoundManager.toggleMute();
-    e.currentTarget.blur();
 };
 
 function init() {
     engine = Engine.create({ gravity: { y: 1.0 } });
     world = engine.world;
-
     render = Render.create({
         element: document.getElementById("game-container"),
         engine: engine,
-        options: {
-            width: WIDTH,
-            height: HEIGHT,
-            wireframes: false,
-            background: "transparent",
-            pixelRatio: window.devicePixelRatio
-        }
+        options: { width: WIDTH, height: HEIGHT, wireframes: false, background: "transparent", pixelRatio: window.devicePixelRatio }
     });
-
     Render.run(render);
     runner = Runner.create();
     Runner.run(runner, engine);
 
-    const wallOpts = { 
-        isStatic: true, 
-        render: { fillStyle: "rgba(255, 255, 255, 0.05)" },
-        friction: 0.1
-    };
-
+    const wallOpts = { isStatic: true, render: { fillStyle: "rgba(255, 255, 255, 0.05)" }, friction: 0.1 };
     World.add(world, [
         Bodies.rectangle(WIDTH / 2, HEIGHT + 50, WIDTH, 100, wallOpts),
         Bodies.rectangle(-25, HEIGHT / 2, 50, HEIGHT, wallOpts),
@@ -200,31 +185,21 @@ function init() {
     updateNextPreview();
 
     const canvas = render.canvas;
-
     const handleMove = (e) => {
         if (gameOver || !currentPlanet || !isClickable) return;
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         mouseX = clientX - rect.left;
-        
         const radius = PLANETS[currentPlanet.planetIndex].radius;
         mouseX = Math.max(WALL_THICKNESS + radius, Math.min(mouseX, WIDTH - WALL_THICKNESS - radius));
-        
         Body.setPosition(currentPlanet, { x: mouseX, y: 70 });
     };
-
     const handleRelease = () => {
         if (gameOver || !currentPlanet || !isClickable) return;
         isClickable = false;
         Body.setStatic(currentPlanet, false);
         SoundManager.playDrop();
-        
-        setTimeout(() => {
-            if (!gameOver) {
-                spawnPlanet();
-                isClickable = true;
-            }
-        }, 600);
+        setTimeout(() => { if (!gameOver) spawnPlanet(); isClickable = true; }, 600);
     };
 
     canvas.addEventListener("mousemove", handleMove);
@@ -232,119 +207,70 @@ function init() {
     canvas.addEventListener("mousedown", handleRelease);
     canvas.addEventListener("touchend", (e) => { e.preventDefault(); handleRelease(); }, { passive: false });
 
-    // 충돌 및 합성
     Events.on(engine, "collisionStart", (event) => {
         event.pairs.forEach((pair) => {
             const { bodyA, bodyB } = pair;
             if (bodyA.planetIndex !== undefined && bodyA.planetIndex === bodyB.planetIndex) {
                 const index = bodyA.planetIndex;
-                if (index === PLANETS.length - 1) { // 태양끼리 만나면 대폭발
+                if (index === PLANETS.length - 1) {
                     createExplosion(bodyA.position.x, bodyA.position.y, "#fff", 30);
                     World.remove(world, [bodyA, bodyB]);
-                    updateScore(PLANETS[index].score * 2);
+                    updateScore(PLANETS[index].score * 2, true);
                     SoundManager.playExplosion();
                     return;
                 }
-
                 const midX = (bodyA.position.x + bodyB.position.x) / 2;
                 const midY = (bodyA.position.y + bodyB.position.y) / 2;
-
                 createExplosion(midX, midY, PLANETS[index].color, 15);
                 World.remove(world, [bodyA, bodyB]);
-                
-                const nextBody = createPlanet(midX, midY, index + 1, false);
-                World.add(world, nextBody);
-                updateScore(PLANETS[index + 1].score);
+                World.add(world, createPlanet(midX, midY, index + 1, false));
+                updateScore(PLANETS[index + 1].score, true);
                 shakeCanvas();
                 SoundManager.playMerge(index);
             }
         });
     });
 
-    // 커스텀 렌더링 (이모지 드로잉)
     Events.on(render, "afterRender", () => {
         const ctx = render.context;
-        
-        // 조준선 (심플하게 변경하여 부하 감소)
         if (isClickable && currentPlanet) {
-            ctx.beginPath();
-            ctx.setLineDash([5, 15]);
-            ctx.moveTo(currentPlanet.position.x, 70);
-            ctx.lineTo(currentPlanet.position.x, HEIGHT);
-            ctx.strokeStyle = "rgba(108, 92, 231, 0.2)";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.beginPath(); ctx.setLineDash([5, 15]);
+            ctx.moveTo(currentPlanet.position.x, 70); ctx.lineTo(currentPlanet.position.x, HEIGHT);
+            ctx.strokeStyle = "rgba(108, 92, 231, 0.2)"; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
         }
-
-        // 데드라인 (타이머에 따라 강조)
-        ctx.beginPath();
-        ctx.moveTo(0, DEADLINE);
-        ctx.lineTo(WIDTH, DEADLINE);
+        ctx.beginPath(); ctx.moveTo(0, DEADLINE); ctx.lineTo(WIDTH, DEADLINE);
         ctx.strokeStyle = gameOverTimer > 0 ? `rgba(214, 48, 49, ${0.2 + (gameOverTimer/2000)*0.6})` : "rgba(255, 255, 255, 0.1)";
-        ctx.lineWidth = gameOverTimer > 0 ? 3 : 1;
-        ctx.stroke();
+        ctx.lineWidth = gameOverTimer > 0 ? 3 : 1; ctx.stroke();
 
-        // 모든 행성 바디에 이모지 및 효과 그리기
-        const bodies = Composite.allBodies(world);
-        bodies.forEach(body => {
+        Composite.allBodies(world).forEach(body => {
             if (body.planetIndex !== undefined) {
                 const planet = PLANETS[body.planetIndex];
                 const scale = body.renderScale || 1.0;
-                ctx.save();
-                ctx.translate(body.position.x, body.position.y);
-                ctx.rotate(body.angle);
-                
-                // [최적화] 복잡한 그라데이션/그림자 대신 단순 원 사용
-                ctx.beginPath();
-                ctx.arc(0, 0, planet.radius * 1.15 * scale, 0, Math.PI * 2);
-                ctx.fillStyle = planet.color;
-                ctx.globalAlpha = 0.15;
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-
-                ctx.beginPath();
-                ctx.arc(0, 0, planet.radius * scale, 0, Math.PI * 2);
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                ctx.font = `${planet.radius * 1.8 * scale}px Arial`;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(planet.emoji, 0, 0);
-                
-                ctx.restore();
+                ctx.save(); ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle);
+                ctx.beginPath(); ctx.arc(0, 0, planet.radius * 1.15 * scale, 0, Math.PI * 2);
+                ctx.fillStyle = planet.color; ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1.0;
+                ctx.beginPath(); ctx.arc(0, 0, planet.radius * scale, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.2)"; ctx.lineWidth = 1; ctx.stroke();
+                ctx.font = `${planet.radius * 1.8 * scale}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(planet.emoji, 0, 0); ctx.restore();
             }
         });
-
         updateParticles(ctx);
         updateFloatingTexts(ctx);
     });
 
-    // 게임 오버 체크 (2초 이상 머물러야 종료)
     Events.on(engine, "afterUpdate", (event) => {
         if (gameOver) return;
-
         let isOverLimit = false;
-        const bodies = Composite.allBodies(world);
-        for (let body of bodies) {
+        Composite.allBodies(world).forEach(body => {
             if (body.planetIndex !== undefined && !body.isStatic && body.position.y < DEADLINE) {
-                if (body.position.y > 85 && Math.abs(body.velocity.y) < 0.2) {
-                    isOverLimit = true;
-                    break;
-                }
+                if (body.position.y > 85 && Math.abs(body.velocity.y) < 0.2) isOverLimit = true;
             }
-        }
-
+        });
         if (isOverLimit) {
-            gameOverTimer += 16.6; // 약 1프레임당 시간
-            if (gameOverTimer > 2000) {
-                triggerGameOver();
-            }
-        } else {
-            gameOverTimer = 0;
-        }
+            gameOverTimer += 16.6;
+            if (gameOverTimer > 2000) triggerGameOver();
+        } else { gameOverTimer = 0; }
     });
 }
 
@@ -357,89 +283,41 @@ function spawnPlanet() {
 
 function createPlanet(x, y, index, isStatic) {
     const cfg = PLANETS[index];
-    const body = Bodies.circle(x, y, cfg.radius, {
-        isStatic: isStatic,
-        restitution: 0.3,
-        friction: 0.1,
-        render: { visible: false }
-    });
+    const body = Bodies.circle(x, y, cfg.radius, { isStatic: isStatic, restitution: 0.3, friction: 0.1, render: { visible: false } });
     body.planetIndex = index;
-    
-    // [애니메이션] 생성 시 스케일 효과용 프로퍼티
     body.renderScale = 0.1; 
-    const targetScale = 1.0;
-    const animate = () => {
-        if (body.renderScale < targetScale) {
-            body.renderScale += 0.1;
-            if (body.renderScale > targetScale) body.renderScale = targetScale;
-            requestAnimationFrame(animate);
-        }
-    };
+    const animate = () => { if (body.renderScale < 1.0) { body.renderScale += 0.1; if (body.renderScale > 1.0) body.renderScale = 1.0; requestAnimationFrame(animate); } };
     animate();
-    
     return body;
 }
 
 function updateScore(points, isMerge = false) {
     const now = Date.now();
     let finalPoints = points;
-
     if (isMerge) {
-        if (now - lastMergeTime < 1500) {
-            comboCount++;
-            finalPoints = points * (1 + comboCount * 0.2); // 콤보 보너스 20%씩
-        } else {
-            comboCount = 0;
-        }
+        if (now - lastMergeTime < 1500) { comboCount++; finalPoints = points * (1 + comboCount * 0.2); }
+        else { comboCount = 0; }
         lastMergeTime = now;
     }
-
     score += Math.floor(finalPoints);
     scoreValueEl.innerText = score;
     scoreValueEl.style.transform = "scale(1.2)";
     setTimeout(() => scoreValueEl.style.transform = "scale(1)", 100);
-
-    // 콤보 텍스트 생성
-    if (isMerge && comboCount > 0) {
-        createFloatingText(mouseX, 100, `Combo x${comboCount + 1}`, "#f1c40f");
-    }
-
-    // 하이 스코어 갱신
+    if (isMerge && comboCount > 0) createFloatingText(mouseX, 100, `Combo x${comboCount + 1}`, "#f1c40f");
     if (score > bestScore) {
-        bestScore = score;
-        bestValueEl.innerText = bestScore;
+        bestScore = score; bestValueEl.innerText = bestScore;
         localStorage.setItem("cosmic_best_score", bestScore);
         bestValueEl.style.transform = "scale(1.3)";
         setTimeout(() => bestValueEl.style.transform = "scale(1)", 150);
     }
 }
 
-function createFloatingText(x, y, text, color) {
-    floatingTexts.push({
-        x, y,
-        text,
-        color,
-        life: 1.0,
-        vy: -2
-    });
-}
-
+function createFloatingText(x, y, text, color) { floatingTexts.push({ x, y, text, color, life: 1.0, vy: -2 }); }
 function updateFloatingTexts(ctx) {
     for (let i = floatingTexts.length - 1; i >= 0; i--) {
-        const t = floatingTexts[i];
-        t.y += t.vy;
-        t.life -= 0.02;
-        if (t.life <= 0) {
-            floatingTexts.splice(i, 1);
-            continue;
-        }
-        ctx.save();
-        ctx.globalAlpha = t.life;
-        ctx.fillStyle = t.color;
-        ctx.font = "bold 24px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText(t.text, t.x, t.y);
-        ctx.restore();
+        const t = floatingTexts[i]; t.y += t.vy; t.life -= 0.02;
+        if (t.life <= 0) { floatingTexts.splice(i, 1); continue; }
+        ctx.save(); ctx.globalAlpha = t.life; ctx.fillStyle = t.color; ctx.font = "bold 24px Arial"; ctx.textAlign = "center"; ctx.fillText(t.text, t.x, t.y); ctx.restore();
     }
 }
 
@@ -449,41 +327,18 @@ function updateNextPreview() {
     setTimeout(() => nextPreviewEl.style.transform = "scale(1)", 150);
 }
 
-function triggerGameOver() {
-    gameOver = true;
-    finalScoreEl.innerText = score;
-    gameOverEl.classList.add("show");
-}
-
+function triggerGameOver() { gameOver = true; finalScoreEl.innerText = score; gameOverEl.classList.add("show"); }
 function createExplosion(x, y, color, count) {
     for (let i = 0; i < count; i++) {
-        particles.push({
-            x, y,
-            radius: Math.random() * 4 + 2,
-            color,
-            vx: (Math.random() - 0.5) * 12,
-            vy: (Math.random() - 0.5) * 12,
-            life: 1.0
-        });
+        particles.push({ x, y, radius: Math.random() * 4 + 2, color, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, life: 1.0 });
     }
 }
 
 function updateParticles(ctx) {
     for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life -= 0.025;
-        if (p.life <= 0) {
-            particles.splice(i, 1);
-            continue;
-        }
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.life;
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
+        const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.025;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.fill(); ctx.globalAlpha = 1.0;
     }
 }
 
@@ -494,15 +349,7 @@ function shakeCanvas() {
 }
 
 const style = document.createElement('style');
-style.innerHTML = `
-@keyframes shake {
-    0% { transform: translate(1px, 1px); }
-    20% { transform: translate(-3px, 0px); }
-    40% { transform: translate(3px, 2px); }
-    60% { transform: translate(-3px, 1px); }
-    80% { transform: translate(3px, 1px); }
-    100% { transform: translate(0px, 0px); }
-}`;
+style.innerHTML = `@keyframes shake { 0% { transform: translate(1px, 1px); } 20% { transform: translate(-3px, 0px); } 40% { transform: translate(3px, 2px); } 60% { transform: translate(-3px, 1px); } 80% { transform: translate(3px, 1px); } 100% { transform: translate(0px, 0px); } }`;
 document.head.appendChild(style);
 
 init();

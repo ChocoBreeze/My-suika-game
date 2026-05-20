@@ -10,9 +10,10 @@
             --space-bg: #050505;
             --nebula-purple: rgba(108, 92, 231, 0.2);
             --nebula-blue: rgba(9, 132, 227, 0.2);
-            --glass-bg: rgba(15, 15, 25, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
             --text-light: #f5f6fa;
+            --accent-purple: #6c5ce7;
             --accent-gold: #f1c40f;
         }
 
@@ -24,7 +25,7 @@
 
         body {
             margin: 0;
-            padding: 0;
+            padding: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -38,39 +39,82 @@
             color: var(--text-light);
         }
 
-        /* 별 배경 효과 */
-        .stars-container {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            overflow: hidden;
+        /* 메인 레이아웃: 게임기와 외부 컨트롤 패널 */
+        #main-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            max-width: 100%;
         }
 
-        .star {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            opacity: 0.5;
-            animation: twinkle var(--duration) infinite ease-in-out;
-        }
-
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.2); }
-        }
-
+        /* 1. 게임 화면 (중앙) */
         #game-wrapper {
             position: relative;
             width: 450px;
             height: 750px;
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.4);
             border-radius: 40px;
-            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5), 0 0 20px rgba(108, 92, 231, 0.2);
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5);
             border: 2px solid var(--glass-border);
             overflow: hidden;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(10px);
         }
 
+        /* 2. 외부 컨트롤 패널 (좌/우 사이드바) */
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 120px;
+        }
+
+        .control-group {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .btn-side {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 24px;
+            color: white;
+        }
+
+        .btn-side:hover {
+            background: var(--accent-purple);
+            transform: scale(1.05);
+        }
+
+        .btn-side:active {
+            transform: scale(0.95);
+        }
+
+        .side-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #8395a7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        /* 내부 UI 레이어 */
         #ui-overlay {
             position: absolute;
             top: 0;
@@ -84,12 +128,11 @@
         }
 
         .glass-panel {
-            background: var(--glass-bg);
+            background: rgba(15, 15, 25, 0.7);
             backdrop-filter: blur(15px);
             border: 1px solid var(--glass-border);
             border-radius: 24px;
             padding: 12px 24px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -105,131 +148,146 @@
         }
 
         .value {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 900;
             color: var(--text-light);
-            text-shadow: 0 0 10px rgba(255,255,255,0.3);
-        }
-
-        #next-preview-container {
-            width: 80px;
-            height: 80px;
-            justify-content: center;
         }
 
         #next-preview {
-            width: 45px;
-            height: 45px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 35px;
-            filter: drop-shadow(0 0 10px rgba(255,255,255,0.5));
-            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-size: 32px;
         }
+
+        /* 모달 (게임 설명) */
+        #help-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(15px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        #help-modal.show { display: flex; }
+
+        .modal-content {
+            background: #1e1e2e;
+            border: 2px solid var(--glass-border);
+            border-radius: 32px;
+            max-width: 400px;
+            width: 100%;
+            padding: 30px;
+            color: white;
+            position: relative;
+        }
+
+        .modal-content h2 { color: var(--accent-gold); margin-top: 0; }
+        .help-item { display: flex; align-items: center; gap: 15px; margin-bottom: 12px; font-size: 15px; }
+        .help-emoji { font-size: 24px; min-width: 30px; }
 
         #game-over {
             position: absolute;
             inset: 0;
-            background: rgba(5, 5, 15, 0.9);
+            background: rgba(5, 5, 15, 0.95);
             backdrop-filter: blur(20px);
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 200;
-            opacity: 0;
-            transition: opacity 0.6s ease;
         }
 
-        #game-over.show {
-            display: flex;
-            opacity: 1;
-        }
+        #game-over.show { display: flex; }
 
-        #game-over h1 {
-            font-size: 48px;
-            font-weight: 900;
-            margin: 0 0 10px 0;
-            background: linear-gradient(135deg, #fff 0%, #74b9ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -1px;
-        }
+        .stars-container { position: fixed; inset: 0; z-index: -1; }
+        .star { position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twinkle var(--duration) infinite ease-in-out; }
+        @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.2); } }
 
-        #game-over p {
-            font-size: 20px;
-            color: #a4b0be;
-            margin: 0 0 40px 0;
-        }
+        canvas { display: block; }
 
-        .btn-restart {
-            padding: 18px 56px;
-            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            font-size: 20px;
-            font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(108, 92, 231, 0.4);
-            transition: all 0.3s;
-        }
-
-        .btn-restart:hover {
-            transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 15px 40px rgba(108, 92, 231, 0.6);
-        }
-
-        canvas {
-            display: block;
+        @media (max-width: 800px) {
+            #main-container { flex-direction: column; align-items: center; gap: 15px; overflow-y: auto; }
+            .side-panel { flex-direction: row; width: 450px; justify-content: center; }
+            #game-wrapper { width: 100vw; height: calc(100vw * 1.6); max-width: 450px; max-height: 750px; }
         }
     </style>
 </head>
 <body>
     <div class="stars-container" id="stars"></div>
 
-    <div id="game-wrapper">
-        <div id="ui-overlay">
-            <div style="display: flex; gap: 12px;">
-                <div class="glass-panel">
-                    <span class="label">Score</span>
-                    <span id="score-value" class="value">0</span>
-                </div>
-                <div class="glass-panel">
-                    <span class="label">Best</span>
-                    <span id="best-value" class="value" style="color: var(--accent-gold);">0</span>
-                </div>
+    <div id="main-container">
+        <!-- 왼쪽 패널: 블랙홀 및 도움말 -->
+        <div class="side-panel">
+            <div class="control-group">
+                <span class="side-label">Skill</span>
+                <button id="blackhole-btn" class="btn-side">🕳️</button>
+                <span id="blackhole-count" style="font-weight: 800; color: var(--accent-purple);">2</span>
             </div>
-            <div class="glass-panel" id="next-preview-container">
-
-                <span class="label">Next</span>
-                <div id="next-preview"></div>
+            <div class="control-group">
+                <span class="side-label">Help</span>
+                <button id="help-btn" class="btn-side" style="font-size: 20px; font-weight: 900;">?</button>
             </div>
         </div>
 
-        <!-- 오디오 컨트롤 -->
-        <button id="audio-toggle" class="glass-panel" style="position: absolute; bottom: 24px; left: 24px; pointer-events: auto; padding: 12px; cursor: pointer;">
-            <span id="audio-icon">🔊</span>
-        </button>
+        <!-- 중앙: 게임 화면 -->
+        <div id="game-wrapper">
+            <div id="ui-overlay">
+                <div style="display: flex; gap: 12px;">
+                    <div class="glass-panel">
+                        <span class="label">Score</span>
+                        <span id="score-value" class="value">0</span>
+                    </div>
+                    <div class="glass-panel">
+                        <span class="label">Best</span>
+                        <span id="best-value" class="value" style="color: var(--accent-gold);">0</span>
+                    </div>
+                </div>
+                <div class="glass-panel">
+                    <span class="label">Next</span>
+                    <div id="next-preview"></div>
+                </div>
+            </div>
 
-        <!-- 블랙홀 버튼 -->
-        <button id="blackhole-btn" class="glass-panel" style="position: absolute; bottom: 24px; right: 24px; pointer-events: auto; padding: 12px 20px; cursor: pointer; flex-direction: row; gap: 8px;">
-            <span style="font-size: 20px;">🕳️</span>
-            <span id="blackhole-count" style="font-weight: 800; color: #a29bfe;">2</span>
-        </button>
-
-        <div id="game-over">
-            <h1>MISSION FAILED</h1>
-            <p>Galaxy Exploration Score: <span id="final-score">0</span></p>
-            <button class="btn-restart" onclick="location.reload()">RE-EXPLORE</button>
+            <div id="game-over">
+                <h1 style="font-size: 42px; font-weight: 900; background: linear-gradient(135deg, #fff, #74b9ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">MISSION FAILED</h1>
+                <p style="margin-bottom: 30px; color: #a4b0be;">Final Score: <span id="final-score">0</span></p>
+                <button onclick="location.reload()" style="padding: 16px 40px; background: var(--accent-purple); color: white; border: none; border-radius: 50px; font-weight: 800; cursor: pointer;">RE-EXPLORE</button>
+            </div>
+            
+            <div id="game-container"></div>
         </div>
 
-        <div id="game-container"></div>
+        <!-- 오른쪽 패널: 오디오 및 설정 -->
+        <div class="side-panel">
+            <div class="control-group">
+                <span class="side-label">Volume</span>
+                <button id="audio-toggle" class="btn-side"><span id="audio-icon">🔊</span></button>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.5" style="width: 80px; cursor: pointer; accent-color: var(--accent-purple);">
+            </div>
+        </div>
+    </div>
+
+    <!-- 도움말 모달 -->
+    <div id="help-modal">
+        <div class="modal-content">
+            <h2>HOW TO PLAY 🚀</h2>
+            <p style="font-size: 14px; color: #8395a7; margin-bottom: 20px;">행성들을 합쳐 찬란한 태양(☀️)을 만드세요!</p>
+            <div class="help-item"><span class="help-emoji">🎯</span> <span>화면을 클릭하여 행성을 떨어뜨립니다.</span></div>
+            <div class="help-item"><span class="help-emoji">➕</span> <span>같은 종류의 행성이 닿으면 다음 단계로 진화!</span></div>
+            <div class="help-item"><span class="help-emoji">🕳️</span> <span><b>블랙홀:</b> 위기의 순간에 가장 작은 행성 3개를 제거합니다. (판당 2회)</span></div>
+            <div class="help-item"><span class="help-emoji">⚠️</span> <span>상단 경계선에 행성이 2초간 머물면 미션 실패!</span></div>
+            <button onclick="document.getElementById('help-modal').classList.remove('show')" style="width: 100%; margin-top: 20px; padding: 12px; border-radius: 12px; background: var(--accent-purple); border: none; color: white; font-weight: 800; cursor: pointer;">GOT IT!</button>
+        </div>
     </div>
 
     <script>
-        // 배경 별 생성 로직
         const starsContainer = document.getElementById('stars');
         for (let i = 0; i < 150; i++) {
             const star = document.createElement('div');
