@@ -8,7 +8,7 @@ const PLANETS = [
     { label: "Venus", radius: 50, emoji: "🟠", score: 32, color: "#f39c12", visualScale: 2.15 },
     { label: "Earth", radius: 62, emoji: "🌍", score: 64, color: "#3498db", visualScale: 2.2 },
     { label: "Neptune", radius: 75, emoji: "🔵", score: 128, color: "#2980b9", visualScale: 2.15 },
-    { label: "Saturn", radius: 90, emoji: "🪐", score: 256, color: "#f1c40f", visualScale: 2.45 },
+    { label: "Galaxy", radius: 90, emoji: "🌀", score: 256, color: "#a29bfe", visualScale: 2.2 },
     { label: "Uranus", radius: 105, emoji: "💠", score: 512, color: "#a29bfe", visualScale: 2.15 },
     { label: "Jupiter", radius: 125, emoji: "🟤", score: 1024, color: "#d35400", visualScale: 2.15 },
     { label: "Sun", radius: 150, emoji: "☀️", score: 2048, color: "#f1c40f", visualScale: 2.3 },
@@ -26,13 +26,17 @@ let isClickable = true;
 let score = 0;
 let gameOver = false;
 let mouseX = WIDTH / 2;
-let particles = [];
 let floatingTexts = [];
 let gameOverTimer = 0;
 let comboCount = 0;
 let lastMergeTime = 0;
 let bestScore = parseInt(localStorage.getItem("cosmic_best_score")) || 0;
 let planetCache = {};
+
+const MAX_PARTICLES = 150;
+const particlePool = Array.from({ length: MAX_PARTICLES }, () => ({
+    active: false, x: 0, y: 0, radius: 0, color: "", vx: 0, vy: 0, life: 0
+}));
 
 /** [Sound Manager] **/
 const SoundManager = (() => {
@@ -166,8 +170,7 @@ document.getElementById("blackhole-btn").onclick = (e) => {
 function init() {
     engine = Engine.create({ 
         gravity: { y: 1.0 },
-        positionIterations: 4,
-        velocityIterations: 3
+        enableSleeping: true
     });
     world = engine.world;
     render = Render.create({
@@ -250,11 +253,12 @@ function init() {
         ctx.strokeStyle = gameOverTimer > 0 ? `rgba(214, 48, 49, ${0.2 + (gameOverTimer/2000)*0.6})` : "rgba(255, 255, 255, 0.1)";
         ctx.lineWidth = gameOverTimer > 0 ? 3 : 1; ctx.stroke();
 
+        const dpr = window.devicePixelRatio || 1;
         Composite.allBodies(world).forEach(body => {
             if (body.planetIndex !== undefined) {
                 const cache = planetCache[body.planetIndex];
                 if (cache) {
-                    const scale = body.renderScale || 1.0;
+                    const scale = (body.renderScale || 1.0) / dpr;
                     const w = cache.width * scale;
                     const h = cache.height * scale;
                     ctx.save();
@@ -339,17 +343,44 @@ function updateNextPreview() {
 
 function triggerGameOver() { gameOver = true; finalScoreEl.innerText = score; gameOverEl.classList.add("show"); }
 function createExplosion(x, y, color, count) {
-    for (let i = 0; i < count; i++) {
-        particles.push({ x, y, radius: Math.random() * 4 + 2, color, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, life: 1.0 });
+    let spawned = 0;
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+        const p = particlePool[i];
+        if (!p.active) {
+            p.active = true;
+            p.x = x;
+            p.y = y;
+            p.radius = Math.random() * 4 + 2;
+            p.color = color;
+            p.vx = (Math.random() - 0.5) * 12;
+            p.vy = (Math.random() - 0.5) * 12;
+            p.life = 1.0;
+            
+            spawned++;
+            if (spawned >= count) break;
+        }
     }
 }
 
 function updateParticles(ctx) {
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.025;
-        if (p.life <= 0) { particles.splice(i, 1); continue; }
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.fill(); ctx.globalAlpha = 1.0;
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+        const p = particlePool[i];
+        if (p.active) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.025;
+            if (p.life <= 0) {
+                p.active = false;
+                continue;
+            }
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.life;
+            ctx.fill();
+        }
     }
+    ctx.globalAlpha = 1.0;
 }
 
 function shakeCanvas() {
@@ -364,13 +395,17 @@ document.head.appendChild(style);
 
 function preRenderPlanets() {
     planetCache = {};
+    const dpr = window.devicePixelRatio || 1;
     PLANETS.forEach((planet, index) => {
-        const size = Math.ceil(planet.radius * 3.0);
+        const baseSize = Math.ceil(planet.radius * 3.0);
+        const size = baseSize * dpr;
         const canvas = document.createElement("canvas");
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext("2d");
-        const center = size / 2;
+        
+        ctx.scale(dpr, dpr);
+        const center = baseSize / 2;
 
         ctx.beginPath();
         ctx.arc(center, center, planet.radius * 1.02, 0, Math.PI * 2);
