@@ -114,52 +114,22 @@
             text-align: center;
         }
 
-        /* 내부 UI 레이어 */
-        #ui-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 24px;
-            z-index: 100;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-        }
-
-        .glass-panel {
-            background: rgba(15, 15, 25, 0.7);
-            backdrop-filter: blur(15px);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 12px 24px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .label {
-            font-size: 10px;
-            font-weight: 800;
-            color: #8395a7;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 4px;
-        }
-
         .value {
             font-size: 28px;
             font-weight: 900;
             color: var(--text-light);
+            display: inline-block;
+            transition: transform 0.1s;
         }
 
         #next-preview {
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
+            font-size: 36px;
+            transition: transform 0.15s;
         }
 
         /* 모달 (게임 설명) */
@@ -214,7 +184,11 @@
 
         @media (max-width: 800px) {
             #main-container { flex-direction: column; align-items: center; gap: 15px; overflow-y: auto; }
-            .side-panel { flex-direction: row; width: 450px; justify-content: center; }
+            .side-panel { flex-direction: row; flex-wrap: wrap; width: 100%; max-width: 450px; justify-content: center; gap: 10px; }
+            .control-group { padding: 12px 18px; border-radius: 20px; gap: 8px; }
+            .btn-side { width: 50px; height: 50px; font-size: 20px; }
+            .value { font-size: 22px; }
+            #next-preview { width: 40px; height: 40px; font-size: 28px; }
             #game-wrapper { width: 100vw; height: calc(100vw * 1.6); max-width: 450px; max-height: 750px; }
         }
     </style>
@@ -223,8 +197,16 @@
     <div class="stars-container" id="stars"></div>
 
     <div id="main-container">
-        <!-- 왼쪽 패널: 블랙홀 및 도움말 -->
+        <!-- 왼쪽 패널: 스코어, 베스트 스코어, 도움말 및 스킬 -->
         <div class="side-panel">
+            <div class="control-group">
+                <span class="side-label">Score</span>
+                <span id="score-value" class="value">0</span>
+            </div>
+            <div class="control-group">
+                <span class="side-label">Best</span>
+                <span id="best-value" class="value" style="color: var(--accent-gold);">0</span>
+            </div>
             <div class="control-group">
                 <span class="side-label">Skill</span>
                 <button id="blackhole-btn" class="btn-side">🕳️</button>
@@ -238,23 +220,6 @@
 
         <!-- 중앙: 게임 화면 -->
         <div id="game-wrapper">
-            <div id="ui-overlay">
-                <div style="display: flex; gap: 12px;">
-                    <div class="glass-panel">
-                        <span class="label">Score</span>
-                        <span id="score-value" class="value">0</span>
-                    </div>
-                    <div class="glass-panel">
-                        <span class="label">Best</span>
-                        <span id="best-value" class="value" style="color: var(--accent-gold);">0</span>
-                    </div>
-                </div>
-                <div class="glass-panel">
-                    <span class="label">Next</span>
-                    <div id="next-preview"></div>
-                </div>
-            </div>
-
             <div id="game-over">
                 <h1 style="font-size: 42px; font-weight: 900; background: linear-gradient(135deg, #fff, #74b9ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">MISSION FAILED</h1>
                 <p style="margin-bottom: 30px; color: #a4b0be;">Final Score: <span id="final-score">0</span></p>
@@ -264,8 +229,12 @@
             <div id="game-container"></div>
         </div>
 
-        <!-- 오른쪽 패널: 오디오 및 설정 -->
+        <!-- 오른쪽 패널: Next 프리뷰, 오디오 및 설정 -->
         <div class="side-panel">
+            <div class="control-group">
+                <span class="side-label">Next</span>
+                <div id="next-preview"></div>
+            </div>
             <div class="control-group">
                 <span class="side-label">Volume</span>
                 <button id="audio-toggle" class="btn-side"><span id="audio-icon">🔊</span></button>
