@@ -32,6 +32,7 @@ let gameOverTimer = 0;
 let comboCount = 0;
 let lastMergeTime = 0;
 let bestScore = parseInt(localStorage.getItem("cosmic_best_score")) || 0;
+let planetCache = {};
 
 /** [Sound Manager] **/
 const SoundManager = (() => {
@@ -156,14 +157,18 @@ document.getElementById("blackhole-btn").onclick = (e) => {
         SoundManager.playVortex();
         shakeCanvas();
         bodies.forEach(body => {
-            createExplosion(body.position.x, body.position.y, "#a29bfe", 10);
+            createExplosion(body.position.x, body.position.y, "#a29bfe", 5);
             World.remove(world, body);
         });
     }
 };
 
 function init() {
-    engine = Engine.create({ gravity: { y: 1.0 } });
+    engine = Engine.create({ 
+        gravity: { y: 1.0 },
+        positionIterations: 4,
+        velocityIterations: 3
+    });
     world = engine.world;
     render = Render.create({
         element: document.getElementById("game-container"),
@@ -171,6 +176,9 @@ function init() {
         options: { width: WIDTH, height: HEIGHT, wireframes: false, background: "transparent", pixelRatio: window.devicePixelRatio }
     });
     Render.run(render);
+    
+    preRenderPlanets();
+    
     runner = Runner.create();
     Runner.run(runner, engine);
 
@@ -213,7 +221,7 @@ function init() {
             if (bodyA.planetIndex !== undefined && bodyA.planetIndex === bodyB.planetIndex) {
                 const index = bodyA.planetIndex;
                 if (index === PLANETS.length - 1) {
-                    createExplosion(bodyA.position.x, bodyA.position.y, "#fff", 30);
+                    createExplosion(bodyA.position.x, bodyA.position.y, "#fff", 15);
                     World.remove(world, [bodyA, bodyB]);
                     updateScore(PLANETS[index].score * 2, true);
                     SoundManager.playExplosion();
@@ -221,7 +229,7 @@ function init() {
                 }
                 const midX = (bodyA.position.x + bodyB.position.x) / 2;
                 const midY = (bodyA.position.y + bodyB.position.y) / 2;
-                createExplosion(midX, midY, PLANETS[index].color, 15);
+                createExplosion(midX, midY, PLANETS[index].color, 8);
                 World.remove(world, [bodyA, bodyB]);
                 World.add(world, createPlanet(midX, midY, index + 1, false));
                 updateScore(PLANETS[index + 1].score, true);
@@ -244,15 +252,17 @@ function init() {
 
         Composite.allBodies(world).forEach(body => {
             if (body.planetIndex !== undefined) {
-                const planet = PLANETS[body.planetIndex];
-                const scale = body.renderScale || 1.0;
-                ctx.save(); ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle);
-                ctx.beginPath(); ctx.arc(0, 0, planet.radius * 1.15 * scale, 0, Math.PI * 2);
-                ctx.fillStyle = planet.color; ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1.0;
-                ctx.beginPath(); ctx.arc(0, 0, planet.radius * scale, 0, Math.PI * 2);
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.2)"; ctx.lineWidth = 1; ctx.stroke();
-                ctx.font = `${planet.radius * 1.8 * scale}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.fillText(planet.emoji, 0, 0); ctx.restore();
+                const cache = planetCache[body.planetIndex];
+                if (cache) {
+                    const scale = body.renderScale || 1.0;
+                    const w = cache.width * scale;
+                    const h = cache.height * scale;
+                    ctx.save();
+                    ctx.translate(body.position.x, body.position.y);
+                    ctx.rotate(body.angle);
+                    ctx.drawImage(cache, -w / 2, -h / 2, w, h);
+                    ctx.restore();
+                }
             }
         });
         updateParticles(ctx);
@@ -351,5 +361,37 @@ function shakeCanvas() {
 const style = document.createElement('style');
 style.innerHTML = `@keyframes shake { 0% { transform: translate(1px, 1px); } 20% { transform: translate(-3px, 0px); } 40% { transform: translate(3px, 2px); } 60% { transform: translate(-3px, 1px); } 80% { transform: translate(3px, 1px); } 100% { transform: translate(0px, 0px); } }`;
 document.head.appendChild(style);
+
+function preRenderPlanets() {
+    planetCache = {};
+    PLANETS.forEach((planet, index) => {
+        const size = Math.ceil(planet.radius * 2.5);
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const center = size / 2;
+
+        ctx.beginPath();
+        ctx.arc(center, center, planet.radius * 1.15, 0, Math.PI * 2);
+        ctx.fillStyle = planet.color;
+        ctx.globalAlpha = 0.15;
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+
+        ctx.beginPath();
+        ctx.arc(center, center, planet.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.font = `${planet.radius * 1.8}px Arial`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(planet.emoji, center, center);
+
+        planetCache[index] = canvas;
+    });
+}
 
 init();
