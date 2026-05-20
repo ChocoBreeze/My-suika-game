@@ -1,17 +1,17 @@
 const { Engine, Render, Runner, World, Bodies, Events, Composite, Body, Vector } = Matter;
 
 const PLANETS = [
-    { label: "Meteorite", radius: 18, emoji: "☄️", score: 2, color: "#95a5a6" },
-    { label: "Moon", radius: 25, emoji: "🌙", score: 4, color: "#ecf0f1" },
-    { label: "Mercury", radius: 32, emoji: "🌑", score: 8, color: "#bdc3c7" },
-    { label: "Mars", radius: 40, emoji: "🔴", score: 16, color: "#e67e22" },
-    { label: "Venus", radius: 50, emoji: "🟠", score: 32, color: "#f39c12" },
-    { label: "Earth", radius: 62, emoji: "🌍", score: 64, color: "#3498db" },
-    { label: "Neptune", radius: 75, emoji: "🔵", score: 128, color: "#2980b9" },
-    { label: "Saturn", radius: 90, emoji: "🪐", score: 256, color: "#f1c40f" },
-    { label: "Uranus", radius: 105, emoji: "💠", score: 512, color: "#a29bfe" },
-    { label: "Jupiter", radius: 125, emoji: "🟤", score: 1024, color: "#d35400" },
-    { label: "Sun", radius: 150, emoji: "☀️", score: 2048, color: "#f1c40f" },
+    { label: "Meteorite", radius: 18, emoji: "☄️", score: 2, color: "#95a5a6", visualScale: 2.2 },
+    { label: "Moon", radius: 25, emoji: "🌙", score: 4, color: "#ecf0f1", visualScale: 2.2 },
+    { label: "Mercury", radius: 32, emoji: "🌑", score: 8, color: "#bdc3c7", visualScale: 2.15 },
+    { label: "Mars", radius: 40, emoji: "🔴", score: 16, color: "#e67e22", visualScale: 2.15 },
+    { label: "Venus", radius: 50, emoji: "🟠", score: 32, color: "#f39c12", visualScale: 2.15 },
+    { label: "Earth", radius: 62, emoji: "🌍", score: 64, color: "#3498db", visualScale: 2.2 },
+    { label: "Neptune", radius: 75, emoji: "🔵", score: 128, color: "#2980b9", visualScale: 2.15 },
+    { label: "Saturn", radius: 90, emoji: "🪐", score: 256, color: "#f1c40f", visualScale: 2.45 },
+    { label: "Uranus", radius: 105, emoji: "💠", score: 512, color: "#a29bfe", visualScale: 2.15 },
+    { label: "Jupiter", radius: 125, emoji: "🟤", score: 1024, color: "#d35400", visualScale: 2.15 },
+    { label: "Sun", radius: 150, emoji: "☀️", score: 2048, color: "#f1c40f", visualScale: 2.3 },
 ];
 
 const WIDTH = 450;
@@ -365,7 +365,7 @@ document.head.appendChild(style);
 function preRenderPlanets() {
     planetCache = {};
     PLANETS.forEach((planet, index) => {
-        const size = Math.ceil(planet.radius * 2.5);
+        const size = Math.ceil(planet.radius * 3.0);
         const canvas = document.createElement("canvas");
         canvas.width = size;
         canvas.height = size;
@@ -373,19 +373,19 @@ function preRenderPlanets() {
         const center = size / 2;
 
         ctx.beginPath();
-        ctx.arc(center, center, planet.radius * 1.15, 0, Math.PI * 2);
+        ctx.arc(center, center, planet.radius * 1.02, 0, Math.PI * 2);
         ctx.fillStyle = planet.color;
-        ctx.globalAlpha = 0.15;
+        ctx.globalAlpha = 0.12;
         ctx.fill();
         ctx.globalAlpha = 1.0;
 
         ctx.beginPath();
         ctx.arc(center, center, planet.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        ctx.font = `${planet.radius * 1.8}px Arial`;
+        ctx.font = `${planet.radius * planet.visualScale}px Arial`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(planet.emoji, center, center);
