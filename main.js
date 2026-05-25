@@ -28,6 +28,7 @@ let gameOver = false;
 let mouseX = WIDTH / 2;
 let floatingTexts = [];
 let gameOverTimer = 0;
+let gameOverCooldown = 0;
 let comboCount = 0;
 let lastMergeTime = 0;
 let bestScore = parseInt(localStorage.getItem("cosmic_best_score")) || 0;
@@ -293,6 +294,7 @@ document.getElementById("blackhole-btn").onclick = (e) => {
         blackHoleCharges--;
         blackHoleCountEl.innerText = blackHoleCharges;
         if (blackHoleCharges === 0) e.currentTarget.style.opacity = "0.3";
+        gameOverCooldown = 1500;
         SoundManager.playVortex();
         shakeCanvas();
         bodies.forEach(body => {
@@ -312,6 +314,7 @@ document.getElementById("whitehole-btn").onclick = (e) => {
         whiteHoleCharges--;
         whiteHoleCountEl.innerText = whiteHoleCharges;
         if (whiteHoleCharges === 0) e.currentTarget.style.opacity = "0.3";
+        gameOverCooldown = 3000;
         SoundManager.playWhiteHole();
         shakeCanvas();
         
@@ -465,6 +468,11 @@ function init() {
 
     Events.on(engine, "afterUpdate", (event) => {
         if (gameOver) return;
+        if (gameOverCooldown > 0) {
+            gameOverCooldown -= 16.6;
+            gameOverTimer = 0;
+            return;
+        }
         let isOverLimit = false;
         Composite.allBodies(world).forEach(body => {
             if (body.planetIndex !== undefined && !body.isStatic) {
