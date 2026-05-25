@@ -1,8 +1,8 @@
-const { Engine, Render, Runner, World, Bodies, Events, Composite, Body, Vector } = Matter;
+const { Engine, Render, Runner, World, Bodies, Events, Composite, Body, Vector, Sleeping } = Matter;
 
 const PLANETS = [
-    { label: "Meteorite", radius: 18, emoji: "☄️", score: 2, color: "#95a5a6", visualScale: 2.2 },
-    { label: "Moon", radius: 25, emoji: "🌙", score: 4, color: "#ecf0f1", visualScale: 2.2 },
+    { label: "Asteroid", radius: 18, emoji: "🪨", score: 2, color: "#95a5a6", visualScale: 2.2 },
+    { label: "Moon", radius: 25, emoji: "🌝", score: 4, color: "#ecf0f1", visualScale: 2.2 },
     { label: "Mercury", radius: 32, emoji: "🌑", score: 8, color: "#bdc3c7", visualScale: 2.15 },
     { label: "Mars", radius: 40, emoji: "🔴", score: 16, color: "#e67e22", visualScale: 2.15 },
     { label: "Venus", radius: 50, emoji: "🟠", score: 32, color: "#f39c12", visualScale: 2.15 },
@@ -170,9 +170,11 @@ document.getElementById("blackhole-btn").onclick = (e) => {
 function init() {
     engine = Engine.create({ 
         gravity: { y: 1.0 },
-        enableSleeping: true
+        enableSleeping: false
     });
     world = engine.world;
+    window.world = world;
+    window.engine = engine;
     render = Render.create({
         element: document.getElementById("game-container"),
         engine: engine,
@@ -184,6 +186,13 @@ function init() {
     
     runner = Runner.create();
     Runner.run(runner, engine);
+
+    window.addEventListener("blur", () => {
+        runner.enabled = false;
+    });
+    window.addEventListener("focus", () => {
+        runner.enabled = true;
+    });
 
     const wallOpts = { isStatic: true, render: { fillStyle: "rgba(255, 255, 255, 0.05)" }, friction: 0.1 };
     World.add(world, [
@@ -197,7 +206,7 @@ function init() {
 
     const canvas = render.canvas;
     const handleMove = (e) => {
-        if (gameOver || !currentPlanet || !isClickable) return;
+        if (gameOver || !currentPlanet || !isClickable || !runner.enabled) return;
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         mouseX = clientX - rect.left;
@@ -206,9 +215,11 @@ function init() {
         Body.setPosition(currentPlanet, { x: mouseX, y: 70 });
     };
     const handleRelease = () => {
-        if (gameOver || !currentPlanet || !isClickable) return;
+        if (gameOver || !currentPlanet || !isClickable || !runner.enabled) return;
         isClickable = false;
         Body.setStatic(currentPlanet, false);
+        Body.setDensity(currentPlanet, 0.001);
+        Sleeping.set(currentPlanet, false);
         SoundManager.playDrop();
         setTimeout(() => { if (!gameOver) spawnPlanet(); isClickable = true; }, 600);
     };

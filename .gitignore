@@ -7,3 +7,4 @@ Thumbs.db
 
 # Gemini CLI temporary files
 .gemini/
+.antigravitycli/
