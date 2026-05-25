@@ -27,15 +27,17 @@
             margin: 0;
             padding: 20px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 25px;
             min-height: 100vh;
             background-color: var(--space-bg);
             background-image: 
                 radial-gradient(circle at 20% 30%, var(--nebula-purple) 0%, transparent 40%),
                 radial-gradient(circle at 80% 70%, var(--nebula-blue) 0%, transparent 40%);
             font-family: 'Pretendard', sans-serif;
-            overflow: hidden;
+            overflow: auto;
             color: var(--text-light);
         }
 
@@ -182,6 +184,99 @@
 
         canvas { display: block; }
 
+        /* Evolution Chart Container */
+        #evolution-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 15px 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            max-width: 100%;
+            width: 750px;
+        }
+
+        .evolution-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #8395a7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #evolution-chart {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 5px;
+        }
+
+        .evolution-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .evolution-emoji {
+            font-size: 22px;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            opacity: 0.25;
+            filter: grayscale(100%);
+        }
+
+        .evolution-item.unlocked .evolution-emoji {
+            opacity: 1;
+            filter: grayscale(0%);
+            background: rgba(108, 92, 231, 0.2);
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 12px var(--accent-purple);
+            transform: scale(1.15);
+        }
+
+        .evolution-arrow {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        .evolution-item .tooltip {
+            visibility: hidden;
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #1e1e2e;
+            color: #fff;
+            text-align: center;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            white-space: nowrap;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s;
+            border: 1px solid var(--glass-border);
+        }
+
+        .evolution-item:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
         @media (max-width: 800px) {
             #main-container { flex-direction: column; align-items: center; gap: 15px; overflow-y: auto; }
             .side-panel { flex-direction: row; flex-wrap: wrap; width: 100%; max-width: 450px; justify-content: center; gap: 10px; }
@@ -190,6 +285,21 @@
             .value { font-size: 22px; }
             #next-preview { width: 40px; height: 40px; font-size: 28px; }
             #game-wrapper { width: 100vw; height: calc(100vw * 1.6); max-width: 450px; max-height: 750px; }
+            
+            /* Mobile styles for evolution container */
+            #evolution-container {
+                width: 100%;
+                max-width: 450px;
+                padding: 10px;
+            }
+            .evolution-emoji {
+                font-size: 16px;
+                width: 30px;
+                height: 30px;
+            }
+            .evolution-arrow {
+                font-size: 10px;
+            }
         }
     </style>
 </head>
@@ -240,6 +350,34 @@
                 <button id="audio-toggle" class="btn-side"><span id="audio-icon">🔊</span></button>
                 <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.5" style="width: 80px; cursor: pointer; accent-color: var(--accent-purple);">
             </div>
+        </div>
+    </div>
+
+    <!-- Evolution Chart -->
+    <div id="evolution-container">
+        <span class="evolution-label">Evolution Chart</span>
+        <div id="evolution-chart">
+            <div class="evolution-item" id="evo-0"><span class="evolution-emoji">🪨</span><span class="tooltip">Asteroid</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-1"><span class="evolution-emoji">🌝</span><span class="tooltip">Moon</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-2"><span class="evolution-emoji">🌑</span><span class="tooltip">Mercury</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-3"><span class="evolution-emoji">🔴</span><span class="tooltip">Mars</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-4"><span class="evolution-emoji">🟠</span><span class="tooltip">Venus</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-5"><span class="evolution-emoji">🌍</span><span class="tooltip">Earth</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-6"><span class="evolution-emoji">🔵</span><span class="tooltip">Neptune</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-7"><span class="evolution-emoji">🌀</span><span class="tooltip">Galaxy</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-8"><span class="evolution-emoji">💠</span><span class="tooltip">Uranus</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-9"><span class="evolution-emoji">🟤</span><span class="tooltip">Jupiter</span></div>
+            <span class="evolution-arrow">➔</span>
+            <div class="evolution-item" id="evo-10"><span class="evolution-emoji">☀️</span><span class="tooltip">Sun</span></div>
         </div>
     </div>
 

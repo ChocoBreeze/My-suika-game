@@ -245,7 +245,9 @@ function init() {
                 const midY = (bodyA.position.y + bodyB.position.y) / 2;
                 createExplosion(midX, midY, PLANETS[index].color, 8);
                 World.remove(world, [bodyA, bodyB]);
-                World.add(world, createPlanet(midX, midY, index + 1, false));
+                const newPlanet = createPlanet(midX, midY, index + 1, false);
+                World.add(world, newPlanet);
+                unlockPlanet(index + 1);
                 updateScore(PLANETS[index + 1].score, true);
                 shakeCanvas();
                 SoundManager.playMerge(index);
@@ -301,9 +303,20 @@ function init() {
 
 function spawnPlanet() {
     currentPlanet = createPlanet(mouseX, 70, nextPlanetIndex, true);
+    unlockPlanet(currentPlanet.planetIndex);
     nextPlanetIndex = Math.floor(Math.random() * 4);
+    unlockPlanet(nextPlanetIndex);
     World.add(world, currentPlanet);
     updateNextPreview();
+}
+
+function unlockPlanet(index) {
+    if (index >= 0 && index < PLANETS.length) {
+        const el = document.getElementById(`evo-${index}`);
+        if (el && !el.classList.contains("unlocked")) {
+            el.classList.add("unlocked");
+        }
+    }
 }
 
 function createPlanet(x, y, index, isStatic) {
