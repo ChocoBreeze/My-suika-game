@@ -32,6 +32,7 @@ let comboCount = 0;
 let lastMergeTime = 0;
 let bestScore = parseInt(localStorage.getItem("cosmic_best_score")) || 0;
 let planetCache = {};
+let shockwaves = [];
 
 const MAX_PARTICLES = 150;
 const particlePool = Array.from({ length: MAX_PARTICLES }, () => ({
@@ -296,6 +297,7 @@ document.getElementById("blackhole-btn").onclick = (e) => {
         shakeCanvas();
         bodies.forEach(body => {
             createExplosion(body.position.x, body.position.y, "#a29bfe", 5);
+            createShockwave(body.position.x, body.position.y, "#a29bfe");
             World.remove(world, body);
         });
     }
@@ -327,7 +329,10 @@ document.getElementById("whitehole-btn").onclick = (e) => {
             Body.applyForce(body, body.position, force);
         });
 
-        // Spawn white blast particles at the center
+        // Spawn white blast particles and double shockwave ripples at the center
+        createShockwave(centerX, centerY, "#dfe6e9");
+        setTimeout(() => createShockwave(centerX, centerY, "#81ecec"), 150);
+
         for (let i = 0; i < 20; i++) {
             createExplosion(centerX + (Math.random() - 0.5) * 60, centerY + (Math.random() - 0.5) * 60, "#dfe6e9", 1);
         }
@@ -405,6 +410,7 @@ function init() {
                 const index = bodyA.planetIndex;
                 if (index === PLANETS.length - 1) {
                     createExplosion(bodyA.position.x, bodyA.position.y, "#fff", 15);
+                    createShockwave(bodyA.position.x, bodyA.position.y, "#ffffff");
                     World.remove(world, [bodyA, bodyB]);
                     updateScore(PLANETS[index].score * 2, true);
                     SoundManager.playExplosion();
@@ -413,6 +419,7 @@ function init() {
                 const midX = (bodyA.position.x + bodyB.position.x) / 2;
                 const midY = (bodyA.position.y + bodyB.position.y) / 2;
                 createExplosion(midX, midY, PLANETS[index].color, 8);
+                createShockwave(midX, midY, PLANETS[index].color);
                 World.remove(world, [bodyA, bodyB]);
                 const newPlanet = createPlanet(midX, midY, index + 1, false);
                 World.add(world, newPlanet);
@@ -452,6 +459,7 @@ function init() {
             }
         });
         updateParticles(ctx);
+        updateShockwaves(ctx);
         updateFloatingTexts(ctx);
     });
 
@@ -552,6 +560,45 @@ function createExplosion(x, y, color, count) {
             spawned++;
             if (spawned >= count) break;
         }
+    }
+}
+
+function createShockwave(x, y, color) {
+    shockwaves.push({
+        x,
+        y,
+        color,
+        radius: 5,
+        maxRadius: 80,
+        alpha: 1.0,
+        lineWidth: 4
+    });
+}
+
+function updateShockwaves(ctx) {
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.radius += 3.5;
+        sw.alpha -= 0.045;
+        sw.lineWidth = Math.max(1, sw.lineWidth * 0.95);
+
+        if (sw.alpha <= 0 || sw.radius >= sw.maxRadius) {
+            shockwaves.splice(i, 1);
+            continue;
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = sw.color;
+        ctx.globalAlpha = sw.alpha;
+        ctx.lineWidth = sw.lineWidth;
+        
+        ctx.shadowColor = sw.color;
+        ctx.shadowBlur = 10;
+        
+        ctx.stroke();
+        ctx.restore();
     }
 }
 
