@@ -43,6 +43,11 @@ const SoundManager = (() => {
     let audioCtx = null;
     let isMuted = false;
     let masterGain = null;
+    let bgmInterval = null;
+    let starInterval = null;
+    let ambientGain = null;
+    let isBgmPlaying = false;
+    let activeOscs = [];
 
     const initContext = () => {
         if (!audioCtx) {
@@ -51,6 +56,115 @@ const SoundManager = (() => {
             masterGain.gain.value = 0.5;
             masterGain.connect(audioCtx.destination);
         }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    };
+
+    const startBGM = () => {
+        if (isMuted || isBgmPlaying) return;
+        initContext();
+        isBgmPlaying = true;
+
+        ambientGain = audioCtx.createGain();
+        ambientGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        ambientGain.connect(masterGain);
+
+        const chords = [
+            [130.81, 196.00, 329.63, 493.88], // Cmaj7
+            [110.00, 164.81, 261.63, 392.00], // Am7
+            [87.31, 130.81, 220.00, 329.63],  // Fmaj7
+            [98.00, 146.83, 246.94, 349.23]   // G7
+        ];
+
+        let chordIndex = 0;
+
+        const playNextChord = () => {
+            if (!isBgmPlaying || isMuted) return;
+            const now = audioCtx.currentTime;
+            const freqs = chords[chordIndex];
+            chordIndex = (chordIndex + 1) % chords.length;
+
+            activeOscs.forEach(o => {
+                try {
+                    o.gainNode.gain.cancelScheduledValues(now);
+                    o.gainNode.gain.setValueAtTime(o.gainNode.gain.value, now);
+                    o.gainNode.gain.linearRampToValueAtTime(0, now + 4.0);
+                    o.osc.stop(now + 4.0);
+                } catch(e) {}
+            });
+            activeOscs = [];
+
+            freqs.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const oGain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now);
+                osc.detune.setValueAtTime((Math.random() - 0.5) * 15, now);
+
+                oGain.gain.setValueAtTime(0, now);
+                oGain.gain.linearRampToValueAtTime(idx === 0 ? 0.3 : 0.2, now + 5.0);
+
+                osc.connect(oGain).connect(ambientGain);
+                osc.start(now);
+
+                activeOscs.push({ osc, gainNode: oGain });
+            });
+        };
+
+        playNextChord();
+
+        bgmInterval = setInterval(() => {
+            if (audioCtx && audioCtx.state === 'running' && !isMuted) {
+                playNextChord();
+            }
+        }, 12000);
+
+        const playTwinkle = () => {
+            if (!isBgmPlaying || isMuted) return;
+            const now = audioCtx.currentTime;
+            const scale = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
+            const freq = scale[Math.floor(Math.random() * scale.length)];
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.015, now + 1.5);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 6.0);
+
+            osc.connect(gain).connect(ambientGain);
+            osc.start(now);
+            osc.stop(now + 6.0);
+
+            const nextTime = 3000 + Math.random() * 5000;
+            starInterval = setTimeout(playTwinkle, nextTime);
+        };
+        starInterval = setTimeout(playTwinkle, 2000);
+    };
+
+    const stopBGM = () => {
+        if (bgmInterval) {
+            clearInterval(bgmInterval);
+            bgmInterval = null;
+        }
+        if (starInterval) {
+            clearTimeout(starInterval);
+            starInterval = null;
+        }
+        activeOscs.forEach(o => {
+            try { o.osc.stop(); } catch(e) {}
+        });
+        activeOscs = [];
+        if (ambientGain) {
+            try { ambientGain.disconnect(); } catch(e) {}
+            ambientGain = null;
+        }
+        isBgmPlaying = false;
     };
 
     const playDrop = () => {
@@ -127,10 +241,15 @@ const SoundManager = (() => {
     const toggleMute = () => {
         isMuted = !isMuted;
         document.getElementById("audio-icon").innerText = isMuted ? "🔇" : "🔊";
+        if (isMuted) {
+            stopBGM();
+        } else {
+            startBGM();
+        }
         return isMuted;
     };
 
-    return { playDrop, playMerge, playExplosion, playVortex, setVolume, toggleMute };
+    return { playDrop, playMerge, playExplosion, playVortex, setVolume, toggleMute, startBGM, stopBGM };
 })();
 
 /** [UI Hookup] **/
@@ -207,6 +326,7 @@ function init() {
     const canvas = render.canvas;
     const handleMove = (e) => {
         if (gameOver || !currentPlanet || !isClickable || !runner.enabled) return;
+        SoundManager.startBGM();
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         mouseX = clientX - rect.left;
@@ -216,6 +336,7 @@ function init() {
     };
     const handleRelease = () => {
         if (gameOver || !currentPlanet || !isClickable || !runner.enabled) return;
+        SoundManager.startBGM();
         isClickable = false;
         Body.setStatic(currentPlanet, false);
         Body.setDensity(currentPlanet, 0.001);
