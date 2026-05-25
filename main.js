@@ -467,8 +467,9 @@ function init() {
         if (gameOver) return;
         let isOverLimit = false;
         Composite.allBodies(world).forEach(body => {
-            if (body.planetIndex !== undefined && !body.isStatic && body.position.y < DEADLINE) {
-                if (body.position.y > 85 && Math.abs(body.velocity.y) < 0.2) isOverLimit = true;
+            if (body.planetIndex !== undefined && !body.isStatic) {
+                const topEdge = body.position.y - PLANETS[body.planetIndex].radius;
+                if (topEdge < DEADLINE && Math.abs(body.velocity.y) < 0.2) isOverLimit = true;
             }
         });
         if (isOverLimit) {
