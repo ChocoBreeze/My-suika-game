@@ -233,6 +233,21 @@ const SoundManager = (() => {
         osc.stop(audioCtx.currentTime + 1);
     };
 
+    const playWhiteHole = () => {
+        if (isMuted) return;
+        initContext();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.connect(gain).connect(masterGain);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+    };
+
     const setVolume = (val) => {
         initContext();
         masterGain.gain.value = val;
@@ -249,7 +264,7 @@ const SoundManager = (() => {
         return isMuted;
     };
 
-    return { playDrop, playMerge, playExplosion, playVortex, setVolume, toggleMute, startBGM, stopBGM };
+    return { playDrop, playMerge, playExplosion, playVortex, playWhiteHole, setVolume, toggleMute, startBGM, stopBGM };
 })();
 
 /** [UI Hookup] **/
@@ -283,6 +298,39 @@ document.getElementById("blackhole-btn").onclick = (e) => {
             createExplosion(body.position.x, body.position.y, "#a29bfe", 5);
             World.remove(world, body);
         });
+    }
+};
+
+let whiteHoleCharges = 1;
+const whiteHoleCountEl = document.getElementById("whitehole-count");
+document.getElementById("whitehole-btn").onclick = (e) => {
+    if (gameOver || whiteHoleCharges <= 0) return;
+    const bodies = Composite.allBodies(world).filter(b => b.planetIndex !== undefined && !b.isStatic);
+    if (bodies.length > 0) {
+        whiteHoleCharges--;
+        whiteHoleCountEl.innerText = whiteHoleCharges;
+        if (whiteHoleCharges === 0) e.currentTarget.style.opacity = "0.3";
+        SoundManager.playWhiteHole();
+        shakeCanvas();
+        
+        const centerX = WIDTH / 2;
+        const centerY = HEIGHT / 2;
+        
+        bodies.forEach(body => {
+            const forceVec = Vector.sub(body.position, { x: centerX, y: centerY });
+            const forceDir = Vector.normalise(forceVec);
+            
+            // Push force: proportional to mass to ensure uniform acceleration
+            const pushMagnitude = 0.05 * body.mass;
+            const force = Vector.mult(forceDir, pushMagnitude);
+            
+            Body.applyForce(body, body.position, force);
+        });
+
+        // Spawn white blast particles at the center
+        for (let i = 0; i < 20; i++) {
+            createExplosion(centerX + (Math.random() - 0.5) * 60, centerY + (Math.random() - 0.5) * 60, "#dfe6e9", 1);
+        }
     }
 };
 

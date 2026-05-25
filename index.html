@@ -15,6 +15,7 @@
             --text-light: #f5f6fa;
             --accent-purple: #6c5ce7;
             --accent-gold: #f1c40f;
+            --accent-blue: #0984e3;
         }
 
         * {
@@ -317,10 +318,18 @@
                 <span class="side-label">Best</span>
                 <span id="best-value" class="value" style="color: var(--accent-gold);">0</span>
             </div>
-            <div class="control-group">
-                <span class="side-label">Skill</span>
-                <button id="blackhole-btn" class="btn-side">🕳️</button>
-                <span id="blackhole-count" style="font-weight: 800; color: var(--accent-purple);">2</span>
+            <div class="control-group" style="padding: 15px 10px;">
+                <span class="side-label">Skills</span>
+                <div style="display: flex; gap: 12px; justify-content: center; align-items: center; width: 100%;">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <button id="blackhole-btn" class="btn-side" style="width: 45px; height: 45px; font-size: 18px; border-radius: 12px;">🕳️</button>
+                        <span id="blackhole-count" style="font-weight: 800; color: var(--accent-purple); font-size: 12px;">2</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <button id="whitehole-btn" class="btn-side" style="width: 45px; height: 45px; font-size: 18px; border-radius: 12px;">⚪</button>
+                        <span id="whitehole-count" style="font-weight: 800; color: var(--accent-blue); font-size: 12px;">1</span>
+                    </div>
+                </div>
             </div>
             <div class="control-group">
                 <span class="side-label">Help</span>
@@ -388,7 +397,8 @@
             <p style="font-size: 14px; color: #8395a7; margin-bottom: 20px;">행성들을 합쳐 찬란한 태양(☀️)을 만드세요!</p>
             <div class="help-item"><span class="help-emoji">🎯</span> <span>화면을 클릭하여 행성을 떨어뜨립니다.</span></div>
             <div class="help-item"><span class="help-emoji">➕</span> <span>같은 종류의 행성이 닿으면 다음 단계로 진화!</span></div>
-            <div class="help-item"><span class="help-emoji">🕳️</span> <span><b>블랙홀:</b> 위기의 순간에 가장 작은 행성 3개를 제거합니다. (판당 2회)</span></div>
+            <div class="help-item"><span class="help-emoji">🕳️</span> <span><b>블랙홀:</b> 가장 작은 행성 3개를 제거합니다. (판당 2회)</span></div>
+            <div class="help-item"><span class="help-emoji">⚪</span> <span><b>화이트홀:</b> 중심에서 모든 행성을 바깥으로 강하게 밀어냅니다. (판당 1회)</span></div>
             <div class="help-item"><span class="help-emoji">⚠️</span> <span>상단 경계선에 행성이 2초간 머물면 미션 실패!</span></div>
             <button onclick="document.getElementById('help-modal').classList.remove('show')" style="width: 100%; margin-top: 20px; padding: 12px; border-radius: 12px; background: var(--accent-purple); border: none; color: white; font-weight: 800; cursor: pointer;">GOT IT!</button>
         </div>
